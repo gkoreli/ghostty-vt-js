@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ghostty-vt renderer comparison</title>
+    <style>
+      @font-face {
+        font-family: "JetBrainsMono Nerd Font";
+        src: url("/fonts/JetBrainsMonoNerdFont-Regular.ttf") format("truetype");
+        font-style: normal;
+        font-weight: 400;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "JetBrainsMono Nerd Font";
+        src: url("/fonts/JetBrainsMonoNerdFont-Bold.ttf") format("truetype");
+        font-style: normal;
+        font-weight: 700;
+        font-display: block;
+      }
+      :root {
+        color-scheme: dark;
+        --chrome: 28px;
+        --radius: 11px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 28px 24px;
+        background:
+          radial-gradient(1200px 700px at 20% 0%, #2b3f56 0%, transparent 60%),
+          radial-gradient(900px 600px at 100% 100%, #3a2b4f 0%, transparent 55%),
+          #10131a;
+        font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        color: #e6e8ea;
+      }
+      button {
+        border: 0.5px solid rgba(255, 255, 255, 0.2);
+        border-radius: 7px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover { background: rgba(255, 255, 255, 0.16); }
+      button:disabled { cursor: wait; opacity: 0.5; }
+      .rig {
+        width: min(1600px, 100%);
+        margin: 0 auto;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-bottom: 14px;
+      }
+      .toolbar h1 { margin: 0; font-size: 15px; font-weight: 650; }
+      .toolbar code,
+      #page-stats,
+      #summary {
+        font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: rgba(230, 232, 234, 0.62);
+      }
+      #page-stats { margin-left: auto; text-align: right; }
+      #summary { flex-basis: 100%; text-align: right; }
+      .comparison {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        height: min(720px, calc(100vh - 150px));
+        min-height: 420px;
+      }
+      .pane {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .window {
+        min-height: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        border-radius: var(--radius);
+        overflow: hidden;
+        border: 0.5px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+          0 0 0 0.5px rgba(0, 0, 0, 0.6),
+          0 24px 70px -12px rgba(0, 0, 0, 0.75),
+          0 8px 24px -8px rgba(0, 0, 0, 0.5);
+      }
+      .titlebar {
+        height: var(--chrome);
+        flex: none;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        padding: 0 10px;
+        background: rgba(46, 48, 51, 0.72);
+        backdrop-filter: saturate(180%) blur(20px);
+        border-bottom: 0.5px solid rgba(0, 0, 0, 0.5);
+        user-select: none;
+      }
+      .lights { display: flex; gap: 8px; }
+      .light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 0.5px solid rgba(0, 0, 0, 0.22);
+      }
+      .close { background: #ff5f57; }
+      .min { background: #febc2e; }
+      .max { background: #28c840; }
+      .title {
+        font-size: 12.5px;
+        font-weight: 590;
+        letter-spacing: 0.1px;
+        color: #c7cace;
+        white-space: nowrap;
+      }
+      .title span { opacity: 0.55; font-weight: 400; }
+      .terminal-host { flex: 1; min-height: 0; overflow: hidden; }
+      .terminal-host canvas { display: block; }
+      .status {
+        min-height: 50px;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: start;
+        gap: 2px 12px;
+        font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: rgba(230, 232, 234, 0.56);
+      }
+      .status b { color: #7fb3d5; font-weight: 600; }
+      .status .wide { flex-basis: 100%; }
+      @media (max-width: 900px) {
+        body { padding-inline: 12px; }
+        .comparison { gap: 8px; }
+        .status { font-size: 9px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="rig">
+      <div class="toolbar">
+        <h1>ghostty-vt renderer A/B</h1>
+        <button id="run-scroll" type="button">Run deterministic scroll</button>
+        <code>?left=canvas&amp;right=gpu&amp;scroll=auto&amp;handicap=right:4</code>
+        <span id="page-stats">page cadence collecting…</span>
+        <span id="summary">PERF idle</span>
+      </div>
+
+      <div class="comparison">
+        <section class="pane" aria-label="Left renderer pane">
+          <div class="window">
+            <div class="titlebar">
+              <div class="lights" aria-hidden="true">
+                <div class="light close"></div><div class="light min"></div><div class="light max"></div>
+              </div>
+              <div class="title" id="left-wintitle">zsh <span>— ghostty-vt</span></div>
+              <div></div>
+            </div>
+            <div class="terminal-host" id="left-term"></div>
+          </div>
+          <div class="status">
+            <span><b>left</b></span><span id="left-backend"></span><span id="left-status">connecting…</span>
+            <span class="wide" id="left-stats"></span><span class="wide" id="left-geometry"></span>
+          </div>
+        </section>
+
+        <section class="pane" aria-label="Right renderer pane">
+          <div class="window">
+            <div class="titlebar">
+              <div class="lights" aria-hidden="true">
+                <div class="light close"></div><div class="light min"></div><div class="light max"></div>
+              </div>
+              <div class="title" id="right-wintitle">zsh <span>— ghostty-vt</span></div>
+              <div></div>
+            </div>
+            <div class="terminal-host" id="right-term"></div>
+          </div>
+          <div class="status">
+            <span><b>right</b></span><span id="right-backend"></span><span id="right-status">connecting…</span>
+            <span class="wide" id="right-stats"></span><span class="wide" id="right-geometry"></span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./app.tsx"></script>
+  </body>
+</html>

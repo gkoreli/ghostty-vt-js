@@ -1,0 +1,53 @@
+import type { ITheme } from '../browser-terminal/interfaces.js';
+
+/** Ported from ~/.config/ghostty/themes/ggTheme on 2026-07-29. */
+export const ggTheme: ITheme = {
+  background: '#0c0c14',
+  foreground: '#f2f2f9',
+  cursor: '#4cffb2',
+  cursorAccent: '#0c0c14',
+  selectionBackground: '#334c7f',
+  selectionForeground: '#f2f2f9',
+  black: '#191926',
+  red: '#ff334c',
+  green: '#00f299',
+  yellow: '#ffd833',
+  blue: '#4c99ff',
+  magenta: '#e566ff',
+  cyan: '#33f2f2',
+  white: '#d8d8e5',
+  brightBlack: '#66667f',
+  brightRed: '#ff667f',
+  brightGreen: '#4cffb2',
+  brightYellow: '#fff266',
+  brightBlue: '#7fbfff',
+  brightMagenta: '#ff7fff',
+  brightCyan: '#66ffff',
+  brightWhite: '#f9f9ff',
+};
+
+/** Ported from ~/.config/ghostty/themes/ggThemeLight on 2026-07-29. */
+export const ggThemeLight: ITheme = {
+  background: '#f4f4fc',
+  foreground: '#0c0c14',
+  cursor: '#00cc88',
+  cursorAccent: '#f4f4fc',
+  selectionBackground: '#334c7f',
+  selectionForeground: '#f4f4fc',
+  black: '#e6e6f2',
+  red: '#d4163a',
+  green: '#00994d',
+  yellow: '#c48800',
+  blue: '#2b6fdb',
+  magenta: '#a033e0',
+  cyan: '#0095a3',
+  white: '#3a3a5c',
+  brightBlack: '#7f7f99',
+  brightRed: '#ff334c',
+  brightGreen: '#00cc66',
+  brightYellow: '#e6a800',
+  brightBlue: '#4c99ff',
+  brightMagenta: '#c44dff',
+  brightCyan: '#00c2c2',
+  brightWhite: '#191926',
+};

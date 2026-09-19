@@ -1,0 +1,86 @@
+# Repository toolchain and commands.
+# Bun owns workspace installation, scripts, and the lockfile.
+
+[tools]
+bun = "1.4.2"
+zig = "0.16.0"
+
+[tasks.install]
+description = "Install all workspace dependencies"
+run = "bun install"
+
+[tasks.build]
+description = "Build workspace packages in dependency order"
+run = "bun run build"
+
+[tasks.typecheck]
+description = "Typecheck every workspace package"
+run = "bun run typecheck"
+
+[tasks.test]
+description = "Run every workspace package test suite"
+run = "bun run test"
+
+[tasks.check]
+description = "Build, typecheck, and test the monorepo"
+run = "bun run check"
+
+[tasks.demo]
+description = "Run the browser terminal demo"
+run = "bun run demo"
+
+[tasks."wasm:build"]
+description = "Build ghostty-vt.wasm from the pinned Ghostty submodule"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+GHOSTTY_DIR="{{config_root}}/vendor/ghostty"
+OUTPUT="{{config_root}}/packages/ghostty-vt-js/wasm/ghostty-vt.wasm"
+
+if [[ ! -f "$GHOSTTY_DIR/build.zig" ]]; then
+  echo "vendor/ghostty is not initialized"
+  echo "Run: git submodule update --init vendor/ghostty"
+  exit 1
+fi
+
+printf 'Building from Ghostty %s with Zig %s\n' \
+  "$(git -C "$GHOSTTY_DIR" rev-parse --short HEAD)" "$(zig version)"
+
+(
+  cd "$GHOSTTY_DIR"
+  zig build -Demit-lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall
+)
+
+mkdir -p "$(dirname "$OUTPUT")"
+cp "$GHOSTTY_DIR/zig-out/bin/ghostty-vt.wasm" "$OUTPUT"
+printf 'Wrote %s (%s bytes)\n' "$OUTPUT" "$(stat -f '%z' "$OUTPUT")"
+"""
+
+[tasks."wasm:update"]
+description = "Advance Ghostty main deliberately, report C-API changes, and rebuild WASM"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="{{config_root}}"
+SUBMODULE="vendor/ghostty"
+BEFORE=$(git -C "$ROOT/$SUBMODULE" rev-parse HEAD)
+
+git -C "$ROOT" submodule sync -- "$SUBMODULE"
+git -C "$ROOT" submodule update --remote --init -- "$SUBMODULE"
+AFTER=$(git -C "$ROOT/$SUBMODULE" rev-parse HEAD)
+
+if [[ "$BEFORE" == "$AFTER" ]]; then
+  echo "Ghostty is already at $AFTER"
+else
+  echo "Ghostty: $BEFORE -> $AFTER"
+  echo "C API commits:"
+  git -C "$ROOT/$SUBMODULE" log --oneline "$BEFORE..$AFTER" -- include/ src/lib_vt.zig
+  echo "Review the header diff before committing:"
+  echo "  git -C vendor/ghostty diff $BEFORE..$AFTER -- include/"
+  grep minimum_zig_version "$ROOT/$SUBMODULE/build.zig.zon" || true
+fi
+
+mise run wasm:build
+"""

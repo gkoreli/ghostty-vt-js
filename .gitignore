@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+dist/
+coverage/
+*.tgz
+*.tsbuildinfo
+
+# Ghostty submodule build artifacts
+vendor/ghostty/zig-out/
+vendor/ghostty/zig-cache/
+vendor/ghostty/.zig-cache/
+vendor/ghostty/zig-pkg/

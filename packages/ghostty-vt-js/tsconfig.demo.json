@@ -1,0 +1,19 @@
+{
+  // The demo is typechecked SEPARATELY from the library, on purpose.
+  //
+  // `tsconfig.json` compiles src/ with `types: ["node"]` and no Bun globals —
+  // that is a guardrail, not an omission: the library must stay runtime-agnostic
+  // (browser, Node, Bun), so a stray `Bun.*` in src/ has to fail the build.
+  // The demo is Bun-only by design, so it gets its own config with Bun types.
+  //
+  // Both run under `bun run typecheck`. Before this split the demo was excluded
+  // from `include` entirely and went completely unchecked.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["bun", "react", "react-dom"],
+    "jsx": "react-jsx",
+    "rootDir": "."
+  },
+  "include": ["demo", "src"]
+}

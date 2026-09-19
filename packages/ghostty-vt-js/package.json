@@ -1,0 +1,94 @@
+{
+  "name": "@gkoreli/ghostty-vt-js",
+  "version": "0.3.2",
+  "description": "Direct JavaScript bindings to Ghostty's canonical libghostty-vt C ABI, with browser, headless, session, server, React, and WASM surfaces.",
+  "type": "module",
+  "exports": {
+    "./terminal-screen-emulator": {
+      "types": "./dist/terminal-screen-emulator/index.d.ts",
+      "import": "./dist/terminal-screen-emulator/index.js"
+    },
+    "./browser-terminal": {
+      "types": "./dist/browser-terminal/index.d.ts",
+      "import": "./dist/browser-terminal/index.js"
+    },
+    "./themes": {
+      "types": "./dist/themes/index.d.ts",
+      "import": "./dist/themes/index.js"
+    },
+    "./wasm": "./wasm/ghostty-vt.wasm",
+    "./protocol": {
+      "types": "./dist/protocol/index.d.ts",
+      "import": "./dist/protocol/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./geometry": {
+      "types": "./dist/browser-terminal/geometry.d.ts",
+      "import": "./dist/browser-terminal/geometry.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.demo.json --noEmit",
+    "test": "bun run build && bun run scripts/run-tests.ts",
+    "demo": "bun --hot demo/server.ts",
+    "pack:dry-run": "bun pm pack --dry-run"
+  },
+  "files": [
+    "dist",
+    "wasm",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=22",
+    "bun": ">=1.4.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gkoreli/ghostty-vt-js.git",
+    "directory": "packages/ghostty-vt-js"
+  },
+  "homepage": "https://github.com/gkoreli/ghostty-vt-js#readme",
+  "bugs": {
+    "url": "https://github.com/gkoreli/ghostty-vt-js/issues"
+  },
+  "keywords": [
+    "ghostty",
+    "libghostty-vt",
+    "terminal",
+    "wasm",
+    "webassembly",
+    "typescript"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "1.4.1",
+    "@types/node": "22.20.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

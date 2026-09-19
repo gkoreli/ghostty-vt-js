@@ -1,0 +1,26 @@
+{
+  "name": "ghostty-vt-js-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gkoreli/ghostty-vt-js.git"
+  },
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "build": "bun --filter './packages/*' build",
+    "typecheck": "bun --filter './packages/*' typecheck",
+    "test": "bun --filter './packages/*' test",
+    "check": "bun run build && bun run typecheck && bun run test",
+    "demo": "bun --filter './packages/ghostty-vt-js' demo",
+    "pack:dry-run": "bun --filter './packages/*' pack:dry-run"
+  }
+}
