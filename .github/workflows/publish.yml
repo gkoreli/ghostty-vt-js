@@ -1,23 +1,67 @@
-name: Publish npm package
+name: Auto tag and publish npm packages
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Full 40-character commit SHA on main to reconcile
+        required: true
+        type: string
   push:
-    tags:
-      - ghostty-vt-js-v*
-      - ghostty-mcp-v*
+    branches: [main]
+    paths:
+      - packages/ghostty-vt-js/package.json
+      - packages/ghostty-mcp/package.json
+
+concurrency:
+  group: npm-publish
+  queue: max
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
-  publish:
+  release:
+    if: ${{ github.event_name == 'push' || github.ref == 'refs/heads/main' }}
     runs-on: macos-14
-    timeout-minutes: 25
+    timeout-minutes: 35
     environment: npm
     steps:
       - name: Check out release source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_commit || github.sha }}
+
+      - name: Verify release source is on main
+        shell: bash
+        env:
+          REQUESTED_COMMIT: ${{ inputs.release_commit }}
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main
+          actual_commit=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$actual_commit" origin/main || {
+            echo "Release commit $actual_commit is not on main" >&2
+            exit 1
+          }
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$REQUESTED_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]] || {
+              echo "release_commit must be a full 40-character commit SHA" >&2
+              exit 1
+            }
+            requested_commit=$(git rev-parse --verify "$REQUESTED_COMMIT^{commit}")
+            [[ "$actual_commit" == "$requested_commit" ]] || {
+              echo "Checked out $actual_commit instead of requested $requested_commit" >&2
+              exit 1
+            }
+          else
+            [[ "$actual_commit" == "$GITHUB_SHA" ]] || {
+              echo "Checked out $actual_commit instead of push commit $GITHUB_SHA" >&2
+              exit 1
+            }
+          fi
 
       - name: Install Node for npm OIDC
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -41,47 +85,202 @@ jobs:
           test "$(bun --version)" = "1.4.2"
           test "$(npm --version)" = "12.0.2"
 
+      - name: Read and validate package versions
+        shell: bash
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          vt_manifest=packages/ghostty-vt-js/package.json
+          mcp_manifest=packages/ghostty-mcp/package.json
+          vt_version=$(node -p "require('./$vt_manifest').version")
+          mcp_version=$(node -p "require('./$mcp_manifest').version")
+          version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+          [[ "$vt_version" =~ $version_pattern ]] || { echo "Invalid VT version: $vt_version" >&2; exit 1; }
+          [[ "$mcp_version" =~ $version_pattern ]] || { echo "Invalid MCP version: $mcp_version" >&2; exit 1; }
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            comparison_commit=$PUSH_BEFORE
+          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            comparison_commit=$(git rev-parse HEAD^)
+          else
+            comparison_commit=
+          fi
+
+          version_changed() {
+            local manifest=$1
+            local current=$2
+            local previous
+            if [[ -z "$comparison_commit" || "$comparison_commit" =~ ^0+$ ]] || ! git cat-file -e "$comparison_commit:$manifest" 2>/dev/null; then
+              echo true
+              return 0
+            fi
+            previous=$(git show "$comparison_commit:$manifest" | node -e '
+              let input = "";
+              process.stdin.on("data", chunk => input += chunk);
+              process.stdin.on("end", () => console.log(JSON.parse(input).version));
+            ')
+            [[ "$previous" != "$current" ]] && echo true || echo false
+          }
+
+          echo "VT_VERSION=$vt_version" >> "$GITHUB_ENV"
+          echo "MCP_VERSION=$mcp_version" >> "$GITHUB_ENV"
+          echo "VT_VERSION_CHANGED=$(version_changed "$vt_manifest" "$vt_version")" >> "$GITHUB_ENV"
+          echo "MCP_VERSION_CHANGED=$(version_changed "$mcp_manifest" "$mcp_version")" >> "$GITHUB_ENV"
+
       - name: Install workspace
         run: bun install --frozen-lockfile
 
-      - name: Build, typecheck, and test
-        run: mise run check
+      - name: Build, typecheck, test, and inspect packages
+        run: |
+          mise run check
+          bun run pack:dry-run
 
-      - name: Select and pack tagged package
-        id: package
+      - name: Publish missing versions in dependency order
         shell: bash
         run: |
           set -euo pipefail
-          case "$GITHUB_REF_NAME" in
-            ghostty-vt-js-v*)
-              package_dir=packages/ghostty-vt-js
-              expected_version=${GITHUB_REF_NAME#ghostty-vt-js-v}
-              ;;
-            ghostty-mcp-v*)
-              package_dir=packages/ghostty-mcp
-              expected_version=${GITHUB_REF_NAME#ghostty-mcp-v}
-              dependency_version=$(bun -e 'console.log(require("./packages/ghostty-mcp/package.json").dependencies["@gkoreli/ghostty-vt-js"].replace("workspace:", ""))')
-              if [[ "$dependency_version" == "*" ]]; then
-                dependency_version=$(bun -e 'console.log(require("./packages/ghostty-vt-js/package.json").version)')
-              fi
-              npm view "@gkoreli/ghostty-vt-js@$dependency_version" version >/dev/null
-              ;;
-            *)
-              echo "Unsupported release tag: $GITHUB_REF_NAME" >&2
-              exit 1
-              ;;
-          esac
 
-          actual_version=$(bun -e "console.log(require('./$package_dir/package.json').version)")
-          if [[ "$actual_version" != "$expected_version" ]]; then
-            echo "Tag version $expected_version does not match $package_dir version $actual_version" >&2
+          is_published() {
+            local package=$1
+            local version=$2
+            local error_file output
+            error_file=$(mktemp)
+            if output=$(npm view "$package@$version" version --prefer-online 2>"$error_file"); then
+              rm -f "$error_file"
+              [[ "$output" == "$version" ]] || {
+                echo "Registry returned unexpected version for $package@$version: $output" >&2
+                exit 1
+              }
+              return 0
+            fi
+            if grep -q 'E404\|404 Not Found' "$error_file"; then
+              rm -f "$error_file"
+              return 1
+            fi
+            cat "$error_file" >&2
+            rm -f "$error_file"
             exit 1
+          }
+
+          wait_for_registry() {
+            local package=$1
+            local version=$2
+            local attempt
+            for attempt in $(seq 1 40); do
+              if npm view "$package@$version" version --prefer-online 2>/dev/null | grep -qx "$version"; then
+                echo "$package@$version is available from the public registry"
+                return 0
+              fi
+              sleep 15
+            done
+            echo "Timed out waiting for $package@$version to reach the public registry" >&2
+            exit 1
+          }
+
+          highest_published_version() {
+            local package=$1
+            npm view "$package" versions --json --prefer-online | node -e '
+              let input = "";
+              process.stdin.on("data", chunk => input += chunk);
+              process.stdin.on("end", () => {
+                const value = JSON.parse(input);
+                const versions = (Array.isArray(value) ? value : [value])
+                  .filter(version => /^\d+\.\d+\.\d+$/.test(version))
+                  .map(version => version.split(".").map(Number))
+                  .sort((left, right) => {
+                    for (let index = 0; index < 3; index++) {
+                      if (left[index] !== right[index]) return left[index] - right[index];
+                    }
+                    return 0;
+                  });
+                if (versions.length === 0) process.exit(1);
+                console.log(versions.at(-1).join("."));
+              });
+            '
+          }
+
+          require_monotonic_version() {
+            local package=$1
+            local candidate=$2
+            local highest
+            highest=$(highest_published_version "$package")
+            node -e '
+              const parse = value => value.split(".").map(Number);
+              const compare = (left, right) => {
+                for (let index = 0; index < 3; index++) {
+                  if (left[index] !== right[index]) return left[index] - right[index];
+                }
+                return 0;
+              };
+              process.exit(compare(parse(process.argv[1]), parse(process.argv[2])) > 0 ? 0 : 1);
+            ' "$candidate" "$highest" || {
+              echo "Refusing to publish $package@$candidate below existing version $highest" >&2
+              exit 1
+            }
+          }
+
+          git fetch --tags
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          ensure_tag() {
+            local tag=$1
+            local manifest=$2
+            local expected_version=$3
+            local version_changed=$4
+            local tagged_version target
+            if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+              target=$(git rev-list -n 1 "$tag")
+              tagged_version=$(git show "$tag:$manifest" | node -e '
+                let input = "";
+                process.stdin.on("data", chunk => input += chunk);
+                process.stdin.on("end", () => console.log(JSON.parse(input).version));
+              ')
+              [[ "$tagged_version" == "$expected_version" ]] || {
+                echo "Tag $tag points to $target with manifest version $tagged_version" >&2
+                exit 1
+              }
+              echo "$tag already records $expected_version at $target"
+              return 0
+            fi
+            [[ "$version_changed" == "true" ]] || {
+              echo "Refusing to create missing tag $tag because $manifest did not change version in this release" >&2
+              exit 1
+            }
+            git tag -a "$tag" -m "Release $tag"
+            git push origin "refs/tags/$tag"
+          }
+
+          if is_published @gkoreli/ghostty-vt-js "$VT_VERSION"; then
+            echo "@gkoreli/ghostty-vt-js@$VT_VERSION is already published"
+            ensure_tag "ghostty-vt-js-v$VT_VERSION" packages/ghostty-vt-js/package.json "$VT_VERSION" "$VT_VERSION_CHANGED"
+          else
+            require_monotonic_version @gkoreli/ghostty-vt-js "$VT_VERSION"
+            ensure_tag "ghostty-vt-js-v$VT_VERSION" packages/ghostty-vt-js/package.json "$VT_VERSION" "$VT_VERSION_CHANGED"
+            vt_archive=$(cd packages/ghostty-vt-js && bun pm pack --destination "$RUNNER_TEMP" --quiet)
+            npm publish "$vt_archive" --access public --provenance
           fi
+          wait_for_registry @gkoreli/ghostty-vt-js "$VT_VERSION"
 
-          archive=$(cd "$package_dir" && bun pm pack --destination "$RUNNER_TEMP" --quiet)
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
-          echo "package_dir=$package_dir" >> "$GITHUB_OUTPUT"
-          echo "version=$actual_version" >> "$GITHUB_OUTPUT"
-
-      - name: Publish with npm trusted publishing
-        run: npm publish "${{ steps.package.outputs.archive }}" --access public
+          if is_published @gkoreli/ghostty-mcp "$MCP_VERSION"; then
+            echo "@gkoreli/ghostty-mcp@$MCP_VERSION is already published"
+            ensure_tag "ghostty-mcp-v$MCP_VERSION" packages/ghostty-mcp/package.json "$MCP_VERSION" "$MCP_VERSION_CHANGED"
+          else
+            require_monotonic_version @gkoreli/ghostty-mcp "$MCP_VERSION"
+            ensure_tag "ghostty-mcp-v$MCP_VERSION" packages/ghostty-mcp/package.json "$MCP_VERSION" "$MCP_VERSION_CHANGED"
+            mcp_archive=$(cd packages/ghostty-mcp && bun pm pack --destination "$RUNNER_TEMP" --quiet)
+            packed_vt_version=$(tar -xOf "$mcp_archive" package/package.json | node -e '
+              let input = "";
+              process.stdin.on("data", chunk => input += chunk);
+              process.stdin.on("end", () => {
+                console.log(JSON.parse(input).dependencies["@gkoreli/ghostty-vt-js"]);
+              });
+            ')
+            [[ "$packed_vt_version" == "$VT_VERSION" ]] || {
+              echo "Packed MCP dependency $packed_vt_version does not match VT $VT_VERSION" >&2
+              exit 1
+            }
+            npm publish "$mcp_archive" --access public --provenance
+          fi
+          wait_for_registry @gkoreli/ghostty-mcp "$MCP_VERSION"

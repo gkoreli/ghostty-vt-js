@@ -3,6 +3,7 @@
 | ADR | Status | Decision |
 |---|---|---|
 | [0001](0001-bun-monorepo.md) | Accepted | Use a Bun monorepo with independently publishable VT and MCP packages |
+| [0002](0002-version-driven-releases.md) | Accepted | Bind immutable tags to versioned source and publish in VT-before-MCP order |
 | [025](025-ghostty-mcp.md) | Accepted | Expose Ghostty's AppleScript API through a CLI and MCP server |
 | [025.1](025.1-ghostty-mcp-north-star.md) | Accepted | Treat the terminal as an observable and controllable agent surface |
 | [026](026-browser-terminal-architecture.md) | Accepted | Map canonical libghostty-vt effects, render state, memory, and modules directly |
