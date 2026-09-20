@@ -251,9 +251,7 @@ jobs:
               echo "Refusing to create missing tag $tag because $manifest did not change version in this release" >&2
               exit 1
             }
-            git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              tag -a "$tag" -m "Release $tag"
+            git tag "$tag"
             git push origin "refs/tags/$tag"
           }
 

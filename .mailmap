@@ -1,0 +1,3 @@
+# Canonicalize commits accidentally authored after local release validation
+# persisted the automated tag identity in this checkout.
+Goga Koreli <gogakoreli@icloud.com> github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
