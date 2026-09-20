@@ -9,7 +9,16 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
-## [0.4.0] - 2026-09-19
+## [0.5.0] - 2026-09-19
+
+### Changed
+
+- **Trusted Publishing retry**: the repository remains pinned to Bun 1.4.2 and
+  this package continues to require Bun `>=1.4.2`. The release retries the
+  complete version-driven npm OIDC path after configuring publisher trust.
+- No public API or WASM changes from 0.3.2.
+
+## [0.4.0] - 2026-09-19 (unpublished)
 
 ### Changed
 

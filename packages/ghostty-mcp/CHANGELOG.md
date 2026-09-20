@@ -3,7 +3,17 @@
 All notable changes to `@gkoreli/ghostty-mcp` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.4.0] - 2026-09-19
+## [0.5.0] - 2026-09-19
+
+### Changed
+
+- **Trusted Publishing retry**: publish after
+  `@gkoreli/ghostty-vt-js@0.5.0` reaches the public registry and the packed
+  dependency is verified as exact `0.5.0`.
+- Package metadata continues to require Bun `>=1.4.2`. No CLI, MCP tool, or
+  AppleScript behavior changes from 0.3.0.
+
+## [0.4.0] - 2026-09-19 (unpublished)
 
 ### Changed
 
