@@ -229,7 +229,8 @@ jobs:
             local manifest=$2
             local expected_version=$3
             local version_changed=$4
-            local tagged_version target
+            local tagged_version target current_commit
+            current_commit=$(git rev-parse HEAD)
             if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
               target=$(git rev-list -n 1 "$tag")
               tagged_version=$(git show "$tag:$manifest" | node -e '
@@ -241,6 +242,10 @@ jobs:
                 echo "Tag $tag points to $target with manifest version $tagged_version" >&2
                 exit 1
               }
+              if [[ "$version_changed" == "true" && "$target" != "$current_commit" ]]; then
+                echo "Tag $tag points to $target, not release commit $current_commit" >&2
+                exit 1
+              fi
               echo "$tag already records $expected_version at $target"
               return 0
             fi

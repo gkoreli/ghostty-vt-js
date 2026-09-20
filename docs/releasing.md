@@ -52,7 +52,7 @@ Prefer rerunning the failed workflow run, which preserves its original release c
 gh workflow run publish.yml --ref main -f release_commit=<40-character-main-commit>
 ```
 
-The workflow rejects a commit outside `main`, skips versions already published, and accepts existing tags whose tagged manifest records the expected version. It can therefore resume after a partial npm publication or tag failure without overwriting registry versions or Git history. If a newer package version has already been published, recovery of a missing older version stops at the monotonic-version check rather than moving npm's `latest` tag backward.
+The workflow rejects a commit outside `main`, skips versions already published, and accepts existing tags whose tagged manifest records the expected version. If the reconciled commit changes that package version, its existing tag must also point to that exact commit; only an unchanged package's tag may remain on an older release commit. The workflow can therefore resume after a partial npm publication or tag failure without overwriting registry versions or Git history. If a newer package version has already been published, recovery of a missing older version stops at the monotonic-version check rather than moving npm's `latest` tag backward.
 
 A tag whose tagged manifest does not record the version in its name is a hard failure and must be corrected with a new package version. Never move or force-push a release tag.
 

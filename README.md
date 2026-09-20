@@ -43,7 +43,7 @@ mise run wasm:update   # deliberately advance Ghostty main, report ABI changes, 
 
 ## Releases
 
-CI runs the full repository check and package-content validation on every pull request and push to `main`. Subsequent npm releases use tag-driven GitHub OIDC without stored npm tokens. See [Releasing](docs/releasing.md).
+CI runs the full repository check and package-content validation on every pull request and push to `main`. Stable package version changes on `main` trigger dependency-ordered npm Trusted Publishing through GitHub OIDC, then preserve immutable package tags without stored npm tokens. See [Releasing](docs/releasing.md).
 
 ## Architecture
 
