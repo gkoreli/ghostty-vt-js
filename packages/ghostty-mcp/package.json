@@ -1,6 +1,6 @@
 {
   "name": "@gkoreli/ghostty-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "CLI and MCP server for observing and controlling Ghostty through its AppleScript API.",
   "type": "module",
   "bin": {

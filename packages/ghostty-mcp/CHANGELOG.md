@@ -3,6 +3,17 @@
 All notable changes to `@gkoreli/ghostty-mcp` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-09-19
+
+### Changed
+
+- **Dependency-ordered automated distribution**: the release workflow waits
+  for `@gkoreli/ghostty-vt-js@0.4.0` to resolve publicly, verifies Bun rewrote
+  the packed `workspace:*` dependency to exact `0.4.0`, and then publishes this
+  package through npm Trusted Publishing.
+- No CLI, MCP tool, or AppleScript behavior changes from 0.3.0; this minor
+  release validates the complete two-package distribution path.
+
 ## [0.3.0] - 2026-07-24
 
 ### Changed

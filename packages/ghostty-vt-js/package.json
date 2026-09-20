@@ -1,6 +1,6 @@
 {
   "name": "@gkoreli/ghostty-vt-js",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Direct JavaScript bindings to Ghostty's canonical libghostty-vt C ABI, with browser, headless, session, server, React, and WASM surfaces.",
   "type": "module",
   "exports": {

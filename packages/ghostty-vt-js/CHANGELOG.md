@@ -9,6 +9,17 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
+## [0.4.0] - 2026-09-19
+
+### Changed
+
+- **Automated public distribution**: stable manifest version changes on `main`
+  now publish through npm Trusted Publishing, bind an immutable package tag to
+  the release source, and wait for public registry visibility before dependent
+  packages continue.
+- No runtime API or WASM changes from 0.3.2; this minor release validates the
+  repository's version-driven distribution path.
+
 ## [0.3.2] - 2026-07-30
 
 ### Changed
