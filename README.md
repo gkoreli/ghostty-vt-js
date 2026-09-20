@@ -41,6 +41,10 @@ mise run wasm:build    # rebuild from the pinned Ghostty source
 mise run wasm:update   # deliberately advance Ghostty main, report ABI changes, rebuild
 ```
 
+## Releases
+
+CI runs the full repository check and package-content validation on every pull request and push to `main`. Subsequent npm releases use tag-driven GitHub OIDC without stored npm tokens. See [Releasing](docs/releasing.md).
+
 ## Architecture
 
 See [Architecture](docs/architecture.md) for the C-ABI mapping, callback mechanism, rendering lifecycle, geometry authority, and resumable-session protocol. The complete decision history is listed in the [ADR index](docs/adr/README.md).

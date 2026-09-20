@@ -1,0 +1,87 @@
+name: Publish npm package
+
+on:
+  push:
+    tags:
+      - ghostty-vt-js-v*
+      - ghostty-mcp-v*
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: macos-14
+    timeout-minutes: 25
+    environment: npm
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install Node for npm OIDC
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Pin npm trusted-publishing client
+        run: npm install --global npm@12.0.2
+
+      - name: Install mise toolchain
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install: true
+          install_args: bun
+          cache: true
+
+      - name: Verify release toolchain
+        run: |
+          test "$(bun --version)" = "1.4.2"
+          test "$(npm --version)" = "12.0.2"
+
+      - name: Install workspace
+        run: bun install --frozen-lockfile
+
+      - name: Build, typecheck, and test
+        run: mise run check
+
+      - name: Select and pack tagged package
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$GITHUB_REF_NAME" in
+            ghostty-vt-js-v*)
+              package_dir=packages/ghostty-vt-js
+              expected_version=${GITHUB_REF_NAME#ghostty-vt-js-v}
+              ;;
+            ghostty-mcp-v*)
+              package_dir=packages/ghostty-mcp
+              expected_version=${GITHUB_REF_NAME#ghostty-mcp-v}
+              dependency_version=$(bun -e 'console.log(require("./packages/ghostty-mcp/package.json").dependencies["@gkoreli/ghostty-vt-js"].replace("workspace:", ""))')
+              if [[ "$dependency_version" == "*" ]]; then
+                dependency_version=$(bun -e 'console.log(require("./packages/ghostty-vt-js/package.json").version)')
+              fi
+              npm view "@gkoreli/ghostty-vt-js@$dependency_version" version >/dev/null
+              ;;
+            *)
+              echo "Unsupported release tag: $GITHUB_REF_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          actual_version=$(bun -e "console.log(require('./$package_dir/package.json').version)")
+          if [[ "$actual_version" != "$expected_version" ]]; then
+            echo "Tag version $expected_version does not match $package_dir version $actual_version" >&2
+            exit 1
+          fi
+
+          archive=$(cd "$package_dir" && bun pm pack --destination "$RUNNER_TEMP" --quiet)
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "package_dir=$package_dir" >> "$GITHUB_OUTPUT"
+          echo "version=$actual_version" >> "$GITHUB_OUTPUT"
+
+      - name: Publish with npm trusted publishing
+        run: npm publish "${{ steps.package.outputs.archive }}" --access public
