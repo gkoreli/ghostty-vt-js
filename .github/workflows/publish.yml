@@ -221,8 +221,6 @@ jobs:
           }
 
           git fetch --tags
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           ensure_tag() {
             local tag=$1
@@ -253,7 +251,9 @@ jobs:
               echo "Refusing to create missing tag $tag because $manifest did not change version in this release" >&2
               exit 1
             }
-            git tag -a "$tag" -m "Release $tag"
+            git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              tag -a "$tag" -m "Release $tag"
             git push origin "refs/tags/$tag"
           }
 
