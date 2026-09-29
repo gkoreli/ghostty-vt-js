@@ -1,13 +1,64 @@
 {
-  "recordedAt": "2026-09-29T06:20:49.367Z",
+  "recordedAt": "2026-09-29T06:56:53.989Z",
   "browser": "Chromium 149.0.7827.55",
   "platform": "darwin/arm64",
   "viewport": {
     "width": 1200,
-    "height": 660
+    "height": 740
   },
-  "backend": "webgl2",
+  "backend": "WEBGL2",
   "wasmSha256": "7e149ebe4d00b1e6748844a60ef1c281735b22e93176e98535177660fe389433",
   "scenario": "packages/ghostty-vt-js/demo/showcase.ts",
-  "note": "Scripted ANSI output rendered by the real terminal. No PTY, no timing benchmark, no speed changes. GIF sampled at 10 fps; MP4 retains the capture timeline."
+  "measurements": [
+    {
+      "scene": "10,000 styled lines through the real WASM engine",
+      "startMs": 0.09999999962747097,
+      "durationMs": 2452.300000000745,
+      "animationFrames": 277,
+      "cadenceFps": 112.65306122448979,
+      "renderSamples": 277,
+      "renderCpuP95Ms": 0.900000000372529,
+      "bytesFed": 1824791,
+      "streamedLines": 10000
+    },
+    {
+      "scene": "Continuous wheel input · reverse direction without restarting",
+      "startMs": 2452.4000000003725,
+      "durationMs": 4056.5999999996275,
+      "animationFrames": 334,
+      "cadenceFps": 82.39107306331495,
+      "renderSamples": 334,
+      "renderCpuP95Ms": 1.1000000005587935,
+      "bytesFed": 1824791,
+      "streamedLines": 10000
+    },
+    {
+      "scene": "True color + Unicode · animated, cursor-addressed output",
+      "startMs": 6509.0999999996275,
+      "durationMs": 3451.600000000559,
+      "animationFrames": 409,
+      "cadenceFps": 118.26086956521736,
+      "renderSamples": 409,
+      "renderCpuP95Ms": 0.7000000001862645,
+      "bytesFed": 4020655,
+      "streamedLines": 10000
+    },
+    {
+      "scene": "Alternate-screen dashboard · synchronized redraws",
+      "startMs": 9960.900000000373,
+      "durationMs": 4163.199999999255,
+      "animationFrames": 499,
+      "cadenceFps": 120.00289163594304,
+      "renderSamples": 499,
+      "renderCpuP95Ms": 0.40000000037252903,
+      "bytesFed": 4461451,
+      "streamedLines": 10000
+    }
+  ],
+  "metricDefinitions": {
+    "cadenceFps": "requestAnimationFrame intervals in this page, not video frame rate or GPU completion rate",
+    "renderCpuP95Ms": "p95 synchronous renderer-call duration, including no-op checks; excludes GPU completion and parsing",
+    "counters": "bytesFed and streamedLines are cumulative; streamedLines counts the opening 10,000-line corpus only"
+  },
+  "note": "Paced scripted workload during video capture; not a throughput benchmark. No PTY or playback speed changes. GIF sampled at 20 fps; MP4 retains the capture timeline. HUD shows rolling 0.5s windows; measurements summarize each chapter."
 }

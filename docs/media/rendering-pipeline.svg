@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-labelledby="title desc">
+  <title id="title">Why ghostty-vt-js stays responsive</title>
+  <desc id="desc">A time-sliced queue feeds Ghostty's WebAssembly engine. Packed frame data feeds cached glyphs and instanced WebGL2 drawing. Smooth scrolling retargets its current animation and anchors the viewport while output arrives. Synchronized updates keep partial application redraws off screen.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L7 4L0 8" fill="none" stroke="#71869f" stroke-width="1.5"/></marker>
+  </defs>
+  <rect width="1200" height="470" rx="16" fill="#0b1018"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif">
+    <text x="36" y="44" fill="#73e0c1" font-size="12" letter-spacing="2">DESIGNED FOR RESPONSIVENESS</text>
+    <text x="36" y="83" fill="#e6edf6" font-size="30" font-weight="650">Less repeated work. More fluid motion.</text>
+    <text x="36" y="110" fill="#95a7bc" font-size="16">From terminal bytes to pixels, with one Ghostty engine at the center.</text>
+    <rect x="36" y="142" width="340" height="150" rx="10" fill="#131e2a" stroke="#2b3c50"/>
+    <rect x="430" y="142" width="340" height="150" rx="10" fill="#13252a" stroke="#315b59"/>
+    <rect x="824" y="142" width="340" height="150" rx="10" fill="#151f32" stroke="#334867"/>
+    <path d="M389 217H417M783 217H811" stroke="#71869f" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="58" y="172" fill="#95a7bc" font-size="12" letter-spacing="1">01 / INPUT</text>
+    <text x="58" y="207" fill="#e6edf6" font-size="23" font-weight="600">Time-sliced writes</text>
+    <text x="58" y="240" fill="#b3c1d2" font-size="16">Keep byte order. Yield between batches.</text>
+    <text x="58" y="266" fill="#b3c1d2" font-size="16">Give the browser room to respond.</text>
+    <text x="452" y="172" fill="#73e0c1" font-size="12" letter-spacing="1">02 / TERMINAL STATE</text>
+    <text x="452" y="207" fill="#e6edf6" font-size="23" font-weight="600">Ghostty → WebAssembly</text>
+    <text x="452" y="240" fill="#b3c1d2" font-size="16">Public C ABI. Packed typed-array frames.</text>
+    <text x="452" y="266" fill="#b3c1d2" font-size="16">Share one render-state snapshot.</text>
+    <text x="846" y="172" fill="#82b2ff" font-size="12" letter-spacing="1">03 / PIXELS</text>
+    <text x="846" y="207" fill="#e6edf6" font-size="23" font-weight="600">Cached GPU glyphs</text>
+    <text x="846" y="240" fill="#b3c1d2" font-size="16">Reuse glyphs. Draw in instanced batches.</text>
+    <text x="846" y="266" fill="#b3c1d2" font-size="16">Skip unchanged GPU frames.</text>
+    <path d="M36 323H1164" stroke="#263344"/>
+    <text x="36" y="357" fill="#73e0c1" font-size="18" font-weight="600">Smooth scrolling that keeps its place</text>
+    <text x="36" y="388" fill="#b3c1d2" font-size="16">Steer the current animation instead of restarting it.</text>
+    <text x="36" y="414" fill="#b3c1d2" font-size="16">Anchor history while new output arrives.</text>
+    <path d="M616 345V424" stroke="#263344"/>
+    <text x="652" y="357" fill="#82b2ff" font-size="18" font-weight="600">Coherent application redraws</text>
+    <text x="652" y="388" fill="#b3c1d2" font-size="16">Honor synchronized-output boundaries.</text>
+    <text x="652" y="414" fill="#b3c1d2" font-size="16">Present the completed update together.</text>
+    <text x="36" y="451" fill="#71869f" font-size="12">Implementation design • WebGL2 path shown • Canvas 2D available • See docs/performance.md for code and measurement details</text>
+  </g>
+</svg>

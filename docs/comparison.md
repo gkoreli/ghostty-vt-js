@@ -14,6 +14,13 @@ Using the public ABI removes this project's need to maintain a custom Ghostty AP
 
 ## What the README table means
 
+| Area | ghostty-vt-js | coder/ghostty-web | xterm.js |
+|---|---|---|---|
+| Headless surface | Included; text, HTML, ANSI | Browser-focused public API | Separate `@xterm/headless`; serialize addon |
+| Session integration | Included React adapter, protocol, PTY host, geometry arbitration | Terminal API and demo integration | Terminal API and addons; application supplies session integration |
+| API approach | Familiar `Terminal`, `write`, `onData`; explicit geometry protocol | Targets xterm.js API compatibility | Established xterm.js API and addon ecosystem |
+| Screen-reader support | No equivalent screen-reader mode implemented | No equivalent mode documented in reviewed API | Documented screen-reader mode |
+
 | Claim about this library | Implementation evidence |
 |---|---|
 | WebGL2 with Canvas compatibility path | [Backend selection](../packages/ghostty-vt-js/src/browser-terminal/gpu/create-renderer.ts), [glyph atlas](../packages/ghostty-vt-js/src/browser-terminal/gpu/core/glyph-atlas.ts) |
@@ -26,7 +33,7 @@ Using the public ABI removes this project's need to maintain a custom Ghostty AP
 
 xterm.js has an established API/addon ecosystem, a separate headless package, a WebGL2 addon, and documented accessibility options. Its [README and addon list](https://github.com/xtermjs/xterm.js#readme), [public API](https://github.com/xtermjs/xterm.js/blob/master/typings/xterm.d.ts), and [screen-reader option](https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/#screenreadermode) are the sources for those entries. These links follow upstream and may change. Accessibility and existing addon compatibility can be decisive reasons to choose xterm.js.
 
-The README's “no equivalent mode documented” entry for ghostty-web is limited to the reviewed public API; it is not an accessibility audit. This project has not established screen-reader parity either.
+The “no equivalent mode documented” entry for ghostty-web is limited to the reviewed public API; it is not an accessibility audit. This project has not established screen-reader parity either.
 
 ## Performance evidence
 
@@ -39,7 +46,7 @@ PERF=1 mise run demo
 
 Each pane receives 10,000 lines in an independent PTY session. The client scrolls each pane in sequence, reporting render-call CPU durations and page-wide animation-frame cadence/long tasks. See the [scenario](../packages/ghostty-vt-js/demo/app.tsx) and [statistics](../packages/ghostty-vt-js/demo/perf-stats.ts). Leave the optional `handicap` parameter unset for measurements; it deliberately adds CPU work to calibrate the instrument.
 
-The renderer timer measures synchronous work, including submission, but not completion on the GPU. Page cadence is shared by both panes. Neither metric establishes input-to-pixel latency, parsing throughput, or a speedup over a different library. The README recording is paced for readability and supplies no benchmark evidence.
+The renderer timer measures synchronous work, including submission, but not completion on the GPU. Page cadence is shared by both panes. Neither metric establishes input-to-pixel latency, parsing throughput, or a speedup over a different library. The README recording is paced for readability; its [live metrics](performance.md#read-the-live-showcase-metrics) describe that capture and supply no comparative benchmark evidence.
 
 Before publishing a competitive performance table, record:
 

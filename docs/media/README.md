@@ -2,7 +2,9 @@
 
 The recording source is [the browser showcase](../../packages/ghostty-vt-js/demo/showcase.ts), with [HTML presentation](../../packages/ghostty-vt-js/demo/showcase.html). It writes ANSI into the real `Terminal` using the committed Ghostty WASM. It does not start a shell, expose a PTY, or simulate terminal pixels.
 
-Scenes cover true color, text styles, Unicode, cursor-addressed animation, alternate-screen entry/exit, streaming output, and scrollback. Output is deliberately paced for readability. The recording is not a performance benchmark.
+The opening immediately streams 10,000 styled lines. The remaining chapters show continuous wheel scrolling in both directions, animated true color/Unicode, and synchronized alternate-screen redraws. Short holds make the transitions readable. Durations use elapsed time so a high-refresh display does not race through the scenes.
+
+The overlay displays measured browser frame cadence, render-call CPU p95, and the actual number of streamed lines. [Metric definitions and limitations](../performance.md#read-the-live-showcase-metrics) explain the difference between browser cadence, renderer CPU time, and encoded video FPS. Output is paced for readability; this is not a throughput benchmark.
 
 ## Capture
 
@@ -18,9 +20,10 @@ The recorder builds the showcase with Bun and serves fixture bytes through Playw
 
 Outputs in this directory:
 
-- `terminal-demo.mp4`: H.264, 1200×660, original capture timeline, no audio.
-- `terminal-demo.gif`: 960-pixel-wide looping preview, sampled at 10 fps.
-- `recording.json`: capture date, Chromium version, platform, viewport, actual rendering backend, and WASM SHA-256.
+- `terminal-demo.mp4`: H.264, 1200×740, original capture timeline, no audio.
+- `terminal-demo.gif`: 960-pixel-wide looping preview, sampled at 20 fps.
+- `recording.json`: capture environment, WASM SHA-256, metric definitions, and per-chapter timings/counters.
+- `rendering-pipeline.svg`: editable vector infographic explaining the rendering/scrolling design; it is not generated footage.
 
 Playwright captures a real browser viewport. ffmpeg encodes it without changing playback speed. Hardware/browser differences can change the selected renderer; inspect the recorded backend before describing footage as GPU-rendered.
 
