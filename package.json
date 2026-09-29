@@ -22,5 +22,8 @@
     "check": "bun run build && bun run typecheck && bun run test",
     "demo": "bun --filter './packages/ghostty-vt-js' demo",
     "pack:dry-run": "bun --filter './packages/*' pack:dry-run"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }

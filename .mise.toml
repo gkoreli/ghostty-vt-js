@@ -29,6 +29,10 @@ run = "bun run check"
 description = "Run the browser terminal demo"
 run = "bun run demo"
 
+[tasks."demo:record"]
+description = "Record the browser showcase (requires Chromium and ffmpeg)"
+run = "bun scripts/record-demo.mjs"
+
 [tasks."wasm:build"]
 description = "Build ghostty-vt.wasm from the pinned Ghostty submodule"
 run = """

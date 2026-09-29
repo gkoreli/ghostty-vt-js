@@ -1,0 +1,13 @@
+{
+  "recordedAt": "2026-09-29T06:20:49.367Z",
+  "browser": "Chromium 149.0.7827.55",
+  "platform": "darwin/arm64",
+  "viewport": {
+    "width": 1200,
+    "height": 660
+  },
+  "backend": "webgl2",
+  "wasmSha256": "7e149ebe4d00b1e6748844a60ef1c281735b22e93176e98535177660fe389433",
+  "scenario": "packages/ghostty-vt-js/demo/showcase.ts",
+  "note": "Scripted ANSI output rendered by the real terminal. No PTY, no timing benchmark, no speed changes. GIF sampled at 10 fps; MP4 retains the capture timeline."
+}
