@@ -1,5 +1,7 @@
 # Third-party notices
 
+The GitHub Pages playground distributes the same Ghostty WASM and bundled browser code described below. Its build includes this notice and the project license alongside the assets.
+
 ## Ghostty
 
 The `vendor/ghostty` submodule and `packages/ghostty-vt-js/wasm/ghostty-vt.wasm` are derived from [Ghostty](https://github.com/ghostty-org/ghostty), licensed under the MIT License:

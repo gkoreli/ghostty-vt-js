@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Try Ghostty's VT engine in your browser: WebAssembly, WebGL2, smooth scrollback, truecolor, and live terminal redraws." />
+    <meta name="theme-color" content="#0b1018" />
+    <title>ghostty-vt-js — live terminal playground</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; color: #e6edf6; background: #0b1018; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { max-width: 1180px; padding: 32px 28px; margin: auto; }
+      a { color: #a6c6ff; text-underline-offset: 4px; }
+      .top, .links, .controls, .bar, footer { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+      .top { justify-content: space-between; font-size: 14px; }
+      .brand { color: #73e0c1; font-family: monospace; font-size: 17px; }
+      h1 { font-size: clamp(32px, 5vw, 54px); line-height: 1.12; letter-spacing: -1.8px; margin: 38px 0 14px; }
+      .intro { color: #a6b5c9; max-width: 770px; line-height: 1.65; margin: 0 0 24px; }
+      .controls { gap: 8px; margin-bottom: 12px; }
+      button, select, textarea { font: inherit; }
+      button, select { border: 1px solid #344254; background: #162130; color: #e6edf6; border-radius: 7px; padding: 9px 13px; cursor: pointer; }
+      button:hover:not(:disabled), select:hover { background: #25364b; }
+      button:disabled { opacity: .5; cursor: wait; }
+      button:first-child { border-color: #4c9b86; }
+      :focus-visible { outline: 2px solid #73e0c1; outline-offset: 3px; }
+      .renderer { display: flex; gap: 8px; align-items: center; margin-left: auto; font-size: 13px; color: #a6b5c9; }
+      .window { border: 1px solid #344254; border-radius: 12px; overflow: hidden; background: #101722; }
+      .bar { justify-content: space-between; padding: 11px 16px; background: #182231; border-bottom: 1px solid #293649; font: 12px monospace; color: #a6b5c9; }
+      .lamp { color: #73e0c1; }
+      #terminal { height: clamp(320px, 53vh, 570px); position: relative; overflow: hidden; padding: 12px; }
+      .status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: #a6b5c9; font-size: 12px; padding: 12px 0; }
+      #status { color: #73e0c1; }
+      details { margin-top: 14px; border-top: 1px solid #293649; padding-top: 18px; }
+      summary { cursor: pointer; font-size: 14px; }
+      .hint { color: #a6b5c9; font-size: 13px; line-height: 1.6; }
+      textarea { display: block; width: 100%; min-height: 90px; resize: vertical; background: #101722; border: 1px solid #344254; border-radius: 7px; color: #e6edf6; padding: 12px; margin: 12px 0; font-family: monospace; }
+      footer { justify-content: space-between; margin-top: 24px; color: #8294ac; font-size: 12px; line-height: 1.6; }
+      @media (max-width: 620px) { main { padding: 20px 14px; } h1 { margin-top: 28px; } .links { gap: 12px; } .renderer { margin-left: 0; } #terminal { padding: 6px; } }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav class="top" aria-label="Project"><strong class="brand">ghostty-vt-js</strong><div class="links"><a href="https://github.com/gkoreli/ghostty-vt-js">GitHub ↗</a><a href="https://github.com/gkoreli/ghostty-vt-js/blob/main/docs/getting-started.md">Get started ↗</a></div></nav>
+      <h1>Ghostty’s engine.<br>Your browser. Your keystrokes.</h1>
+      <p class="intro">A live terminal powered by Ghostty’s public C ABI and WebAssembly. Type below, send 10,000 lines through the engine, or watch it redraw. Everything runs on your device.</p>
+      <div class="controls" aria-label="Terminal demos">
+        <button data-demo="colors" disabled>Color + Unicode</button>
+        <button data-demo="stream" disabled>Stream 10,000 lines</button>
+        <button data-demo="dashboard" disabled>Live dashboard</button>
+        <button data-demo="clear" disabled>Clear</button>
+        <label class="renderer">Renderer <select id="renderer"><option value="auto">Auto · prefer WebGL2</option><option value="canvas">Canvas 2D</option></select></label>
+      </div>
+      <div class="window">
+        <div class="bar"><span><span class="lamp" aria-hidden="true">●</span> browser playground</span><span id="backend">Loading WASM…</span></div>
+        <div id="terminal" aria-label="Interactive terminal. Type help for demo commands."></div>
+      </div>
+      <div class="status"><span id="status" role="status">Loading Ghostty…</span><span id="geometry"></span></div>
+      <p class="hint">Click the terminal and type <code>help</code>. Try selecting text and scrolling through output. This is a browser demo command prompt; running a shell or programs like Vim requires a <a href="https://github.com/gkoreli/ghostty-vt-js/blob/main/docs/getting-started.md#react-and-pty-sessions">PTY server</a>.</p>
+      <details><summary>Send your own ANSI output</summary><p class="hint">Use escaped sequences such as <code>\x1b[31m</code> for red, <code>\x1b[0m</code> to reset, and <code>\r\n</code> for a new line. Input stays in this tab.</p><label for="ansi">Terminal output</label><textarea id="ansi" maxlength="100000" spellcheck="false">\x1b[38;2;115;224;193mHello from Ghostty!\x1b[0m\r\n</textarea><button id="send" disabled>Send to terminal</button></details>
+      <footer><span>Unofficial community project. Not affiliated with or endorsed by Ghostty.</span><span><a href="https://github.com/gkoreli/ghostty-vt-js/blob/main/docs/performance.md">Why it’s fast</a> · <a href="./THIRD_PARTY_NOTICES.md">Notices</a> · <a href="./LICENSE">MIT</a></span></footer>
+    </main>
+    <script type="module" src="./playground.ts"></script>
+  </body>
+</html>

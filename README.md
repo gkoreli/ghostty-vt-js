@@ -4,7 +4,7 @@
 
 An interactive TypeScript terminal built on Ghostty's **public C ABI**, compiled to WebAssembly. WebGL2 rendering, smooth scrollback, and the same engine on your backend—with React and PTY session integration included.
 
-[Get started](docs/getting-started.md) · [Why it's fast](docs/performance.md) · [Compare](docs/comparison.md) · [Develop](docs/development.md)
+[Try it live](https://gkoreli.github.io/ghostty-vt-js/) · [Get started](docs/getting-started.md) · [Why it's fast](docs/performance.md) · [Compare](docs/comparison.md) · [Develop](docs/development.md)
 
 [![10,000 styled lines, smooth scrolling, animated color, and live redraws—with measured browser cadence and render CPU time](docs/media/terminal-demo.gif)](docs/media/terminal-demo.mp4)
 

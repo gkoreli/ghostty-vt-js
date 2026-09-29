@@ -4,6 +4,8 @@
 
 TypeScript bindings to Ghostty's public `libghostty-vt` C ABI, compiled to WebAssembly. WebGL2 rendering, smooth scrollback, headless screen capture, and optional React/PTY session integration.
 
+**[Try the live playground →](https://gkoreli.github.io/ghostty-vt-js/)** No install or sign-in required.
+
 [![10,000 styled lines, smooth scrolling, color, and live redraws](https://raw.githubusercontent.com/gkoreli/ghostty-vt-js/main/docs/media/terminal-demo.gif)](https://github.com/gkoreli/ghostty-vt-js/blob/main/docs/media/terminal-demo.mp4)
 
 ## Why pick it?

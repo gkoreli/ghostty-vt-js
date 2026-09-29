@@ -16,6 +16,7 @@ import { TerminalSessionHost, type PtyHandle, type TerminalClient } from "../src
 import { mapGhosttyShowConfig, type ResolvedGhosttyConfig } from "./ghostty-config.js";
 import index from "./index.html";
 import showcase from "./showcase.html";
+import playground from "./playground.html";
 
 const WASM_PATH = new URL("../wasm/ghostty-vt.wasm", import.meta.url).pathname;
 const FONT_REGULAR_PATH = new URL(
@@ -103,6 +104,7 @@ const server = Bun.serve({
   routes: {
     "/": index,
     "/showcase": showcase,
+    "/playground": playground,
     "/config": () =>
       new Response(JSON.stringify(RESOLVED_GHOSTTY_CONFIG), {
         headers: { "content-type": "application/json; charset=utf-8" },
