@@ -8,7 +8,8 @@
  * @source https://github.com/ghostty-org/ghostty/pull/11922 (pid + tty)
  */
 
-import { runAppleScript, runAppleScriptLines, readTempFile } from "./applescript.js";
+import { runAppleScript, runAppleScriptLines, readTempFile, appleScriptString as literal } from "./applescript.js";
+import { spawnScript } from "../infrastructure/spawn-script.js";
 import type { Terminal, SpawnOptions, ReadScope, ReadFormat, StyledTerminalContent } from "./types.js";
 import { createTerminalScreen, OutputFormat } from "@gkoreli/ghostty-vt-js/terminal-screen-emulator";
 
@@ -82,8 +83,8 @@ export async function readTerminal(terminalId: string, scope: ReadScope = "scree
   const action = scope === "scrollback" ? "write_scrollback_file:copy" : "write_screen_file:copy";
 
   const script = `tell application "Ghostty"
-  set t to first terminal whose id is "${terminalId}"
-  perform action "${action}" on t
+  set t to first terminal whose id is ${literal(terminalId)}
+  perform action ${literal(action)} on t
   delay 0.3
 end tell
 return the clipboard`;
@@ -145,8 +146,8 @@ export async function readTerminalStyled(
   const action = `${actionBase}:copy,vt`;
 
   const script = `tell application "Ghostty"
-  set t to first terminal whose id is "${terminalId}"
-  perform action "${action}" on t
+  set t to first terminal whose id is ${literal(terminalId)}
+  perform action ${literal(action)} on t
   delay 0.3
 end tell
 return the clipboard`;
@@ -181,80 +182,29 @@ return the clipboard`;
   }
 }
 
-/**
- * Send text input to a terminal, as if typed/pasted.
- *
- * @source Ghostty.sdef: "input text" command
- */
+/** Paste-style input without an appended Enter key; the receiving application controls paste behavior. */
+export async function pasteText(terminalId: string, text: string): Promise<void> {
+  await runAppleScript(`tell application "Ghostty"
+    set t to first terminal whose id is ${literal(terminalId)}
+    input text ${literal(text)} to t
+  end tell`);
+}
+
+/** Line-oriented submission; every line receives Enter, including the final nonempty line. */
 export async function sendCommand(terminalId: string, text: string): Promise<void> {
-  // Ghostty's `input text` uses bracketed paste mode, so newlines don't
-  // trigger command execution. We split on newlines and send each line
-  // followed by a `send key "enter"` to execute.
-  const escaped = text
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\t/g, "\\t");
-
-  // Split on actual newlines. Always press Enter after the last line —
-  // there's no use case for typing text into a terminal without submitting it.
-  const lines = escaped.split("\n").filter((l, i, arr) => i < arr.length - 1 || l !== "");
-
-  const script: string[] = ['tell application "Ghostty"'];
-  script.push(`  set t to first terminal whose id is "${terminalId}"`);
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line) {
-      script.push(`  input text "${line}" to t`);
-    }
-    script.push('  send key "enter" to t');
+  const lines = text.split("\n").filter((line, i, all) => i < all.length - 1 || line !== "");
+  const script = ['tell application "Ghostty"', `set t to first terminal whose id is ${literal(terminalId)}`];
+  for (const line of lines) {
+    if (line) script.push(`input text ${literal(line)} to t`);
+    script.push('send key "enter" to t');
   }
-
   script.push("end tell");
   await runAppleScriptLines(script);
 }
 
-/**
- * Create a new terminal window, tab, or split.
- *
- * @source Ghostty.sdef: "new window", "new tab", "split" commands
- * @source Ghostty.sdef: "surface configuration" record type
- */
+/** A creation receipt containing the terminal ID; process readiness is not implied. */
 export async function spawnTerminal(opts: SpawnOptions): Promise<string> {
-  const lines: string[] = ['tell application "Ghostty"'];
-
-  const hasConfig = opts.command || opts.cwd || opts.env;
-  if (hasConfig) {
-    lines.push("  set cfg to new surface configuration");
-    if (opts.command) lines.push(`  set command of cfg to "${opts.command}"`);
-    if (opts.cwd) lines.push(`  set initial working directory of cfg to "${opts.cwd}"`);
-    if (opts.env && opts.env.length > 0) {
-      const envList = opts.env.map((e) => `"${e}"`).join(", ");
-      lines.push(`  set environment variables of cfg to {${envList}}`);
-    }
-  }
-
-  const cfgArg = hasConfig ? " with configuration cfg" : "";
-
-  if (opts.type === "window") {
-    lines.push(`  set w to new window${cfgArg}`);
-    lines.push("  return id of first terminal of w");
-  } else if (opts.type === "tab") {
-    lines.push(`  set tb to new tab${cfgArg}`);
-    lines.push("  return id of first terminal of tb");
-  } else if (opts.type === "split") {
-    const dir = opts.direction || "right";
-    if (opts.targetTerminalId) {
-      lines.push(`  set t to first terminal whose id is "${opts.targetTerminalId}"`);
-    } else {
-      lines.push("  set t to first terminal");
-    }
-    lines.push(`  set newT to split t direction ${dir}${cfgArg}`);
-    lines.push("  return id of newT");
-  }
-
-  lines.push("end tell");
-  return runAppleScriptLines(lines);
+  return runAppleScript(spawnScript(opts));
 }
 
 /**
@@ -266,12 +216,12 @@ export async function spawnTerminal(opts: SpawnOptions): Promise<string> {
  */
 export async function performAction(action: string, terminalId?: string): Promise<string> {
   const targetLine = terminalId
-    ? `set t to first terminal whose id is "${terminalId}"`
-    : "set t to first terminal";
+    ? `set t to first terminal whose id is ${literal(terminalId)}`
+    : "set t to focused terminal of selected tab of front window";
 
   const script = `tell application "Ghostty"
   ${targetLine}
-  perform action "${action}" on t
+  perform action ${literal(action)} on t
 end tell`;
 
   return runAppleScript(script);

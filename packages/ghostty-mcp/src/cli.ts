@@ -10,7 +10,7 @@
  *   ghostty-mcp serve                         Start MCP server (stdio)
  */
 
-import { listTerminals, readTerminal, readTerminalStyled, sendCommand, spawnTerminal, performAction } from "./core/index.js";
+import { listTerminals, readTerminal, readTerminalStyled, sendCommand, pasteText, spawnTerminal, performAction, workspace } from "./core/index.js";
 import type { ReadFormat } from "./core/index.js";
 
 const args = process.argv.slice(2);
@@ -21,6 +21,11 @@ function usage(exitCode = 1): never {
 
 Commands:
   list                              List all terminals (id, pid, tty, cwd, title)
+  layout                            JSON window/tab/terminal hierarchy (no split geometry)
+  tab rename <tab-id> <title>        Rename and verify the tab title
+  tab select <tab-id>                Select and verify the tab
+  tab close <tab-id>                 Close processes in the tab and verify absence
+  paste <id> <text>                 Paste text without appending Enter
   read <id> [--scrollback] [--styled]  Read terminal screen (or full scrollback)
     --styled                        Use terminal emulator for styled output
     --format html|ansi|plain        Output format (default: html, requires --styled)
@@ -31,6 +36,8 @@ Commands:
     --cmd <command>                 Command to run
     --cwd <path>                    Working directory
     --target <id>                   Terminal to split
+    --window <id>                   Target window for a tab (default: front window)
+    --input <text>                  Initial shell input, mutually exclusive with --cmd
   action <action> [--on <id>]       Perform any Ghostty action
   serve                             Start MCP server over stdio
 
@@ -59,6 +66,27 @@ async function main() {
   if (command === "--help" || command === "-h") usage(0);
 
   switch (command) {
+    case "layout": {
+      console.log(JSON.stringify(await workspace.inspect(), null, 2));
+      break;
+    }
+    case "tab": {
+      const operation = args[1];
+      const tabId = args[2];
+      if (!tabId || !["rename", "select", "close"].includes(operation)) usage();
+      if (operation === "rename" && args[3] === undefined) usage();
+      const receipt = await workspace.change(operation === "rename"
+        ? { type: "rename", tabId, title: args[3] }
+        : { type: operation as "select" | "close", tabId });
+      console.log(JSON.stringify(receipt, null, 2));
+      if (receipt.status !== "verified") process.exitCode = 2;
+      break;
+    }
+    case "paste": {
+      if (!args[1] || args[2] === undefined) usage();
+      await pasteText(args[1], args[2]);
+      break;
+    }
     case "list": {
       const terminals = await listTerminals();
       if (terminals.length === 0) {
@@ -113,6 +141,8 @@ async function main() {
         command: cmd,
         cwd,
         targetTerminalId: target,
+        targetWindowId: getFlag("--window"),
+        initialInput: getFlag("--input"),
       });
       console.log(newId);
       console.error(`→ Created ${type}${direction ? ` (${direction})` : ""}`);
@@ -125,7 +155,7 @@ async function main() {
       const targetId = getFlag("--on");
       const result = await performAction(actionStr, targetId);
       if (result) console.log(result);
-      console.error(`→ Performed: ${actionStr}`);
+      console.error(`→ Requested: ${actionStr} (postcondition not verified)`);
       break;
     }
 

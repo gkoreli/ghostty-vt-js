@@ -7,17 +7,7 @@ export interface Terminal {
   title: string;
 }
 
-/** Options for spawning a new terminal */
-export interface SpawnOptions {
-  type: "window" | "tab" | "split";
-  direction?: "right" | "left" | "down" | "up";
-  command?: string;
-  cwd?: string;
-  env?: string[];
-  /** Terminal to split (for type='split') */
-  targetTerminalId?: string;
-}
-
+export type { SpawnOptions } from "../domain/spawn.js";
 /** What to read from a terminal */
 export type ReadScope = "screen" | "scrollback";
 

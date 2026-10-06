@@ -14,7 +14,7 @@
     "build": "tsup",
     "dev": "bun src/cli.ts serve",
     "typecheck": "tsc --noEmit",
-    "test": "bun run build && bun dist/ghostty-mcp.js --help",
+    "test": "bun test tests && bun run build && bun dist/ghostty-mcp.js --help",
     "pack:dry-run": "bun pm pack --dry-run"
   },
   "files": [

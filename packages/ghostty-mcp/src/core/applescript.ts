@@ -43,3 +43,19 @@ export function runAppleScriptLines(lines: string[]): Promise<string> {
 export async function readTempFile(path: string): Promise<string> {
   return readFile(path, "utf-8");
 }
+
+/** An AppleScript text literal; caller data never becomes scripting syntax. */
+export function appleScriptString(value: string): string {
+  if (value.includes("\0")) throw new Error("AppleScript text cannot contain NUL");
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t")}"`;
+}
+
+/** A JSON-producing JXA query over the same public Cocoa scripting dictionary. */
+export function runJavaScript(script: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile("osascript", ["-l", "JavaScript", "-e", script], { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`Ghostty query failed: ${stderr?.trim() || error.message}`));
+      else resolve(stdout.trim());
+    });
+  });
+}

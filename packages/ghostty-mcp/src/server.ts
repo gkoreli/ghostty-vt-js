@@ -6,7 +6,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { listTerminals, readTerminal, sendCommand, spawnTerminal, performAction } from "./core/index.js";
+import { listTerminals, readTerminal, sendCommand, pasteText, spawnTerminal, performAction, workspace } from "./core/index.js";
 
 export async function startServer() {
   const server = new McpServer({
@@ -26,7 +26,7 @@ export async function startServer() {
 
   server.tool(
     "read_terminal",
-    "Read the visible screen or full scrollback content of a terminal.",
+    "Read a terminal by ID without selecting it. Uses Ghostty screen export and overwrites the system clipboard with its temporary file path.",
     {
       terminalId: z.string().describe("Terminal ID from list_terminals"),
       scope: z.enum(["screen", "scrollback"]).default("screen"),
@@ -39,8 +39,7 @@ export async function startServer() {
 
   server.tool(
     "send_command",
-    "Send text input to a terminal. Include \\n to press Enter.",
-    {
+    "Submit text line by line, pressing Enter after each line. The final line is submitted even without a newline.",    {
       terminalId: z.string().describe("Terminal ID"),
       text: z.string().describe("Text to input"),
     },
@@ -52,11 +51,13 @@ export async function startServer() {
 
   server.tool(
     "spawn_terminal",
-    "Create a new terminal window, tab, or split.",
+    "Create a terminal window, tab, or split. May change focus and activate Ghostty; no background-creation guarantee. Returns an ID, not proof of process readiness.",
     {
       type: z.enum(["window", "tab", "split"]).default("window"),
       direction: z.enum(["right", "left", "down", "up"]).optional(),
-      command: z.string().optional(),
+      command: z.string().describe("Direct command replacement; does not initialize an interactive shell PATH").optional(),
+      initialInput: z.string().describe("Startup input to the configured shell; mutually exclusive with command. No readiness guarantee.").optional(),
+      targetWindowId: z.string().describe("Target window for type=tab; defaults to front window").optional(),
       cwd: z.string().optional(),
       targetTerminalId: z.string().optional(),
     },
@@ -68,14 +69,45 @@ export async function startServer() {
 
   server.tool(
     "perform_action",
-    "Trigger any Ghostty action. Run `ghostty +list-actions` for the full list.",
+    "Request a Ghostty action. Acceptance does not verify completion. Use change_tab for verified rename/select/close.",
     {
       action: z.string().describe("Ghostty action string"),
       terminalId: z.string().optional(),
     },
     async ({ action, terminalId }) => {
       const result = await performAction(action, terminalId);
-      return { content: [{ type: "text", text: result || "ok" }] };
+      return { content: [{ type: "text", text: `Action requested; postcondition not verified. Ghostty returned: ${result || "no result"}` }] };
+    }
+  );
+
+  server.tool(
+    "inspect_layout",
+    "Inspect windows, named tabs, their order/selection and terminal membership. Split geometry is unavailable in the public API; this is not a restorable layout checkpoint.",
+    {},
+    async () => ({ content: [{ type: "text", text: JSON.stringify(await workspace.inspect(), null, 2) }] })
+  );
+
+  server.tool(
+    "change_tab",
+    "Rename, select, or close a tab by stable ID and verify its observable postcondition. Select changes focus. Close can change focus, terminates processes in the tab, and may require Ghostty confirmation. An unverified receipt must not be blindly retried.",
+    { change: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("rename"), tabId: z.string(), title: z.string() }),
+      z.object({ type: z.literal("select"), tabId: z.string() }),
+      z.object({ type: z.literal("close"), tabId: z.string() }),
+    ]) },
+    async ({ change }) => {
+      const receipt = await workspace.change(change);
+      return { isError: receipt.status === "unverified", content: [{ type: "text", text: JSON.stringify(receipt, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "paste_text",
+    "Paste text without an appended Enter key. The receiving application controls paste behavior; multiline input is not guaranteed inert in every shell.",
+    { terminalId: z.string(), text: z.string() },
+    async ({ terminalId, text }) => {
+      await pasteText(terminalId, text);
+      return { content: [{ type: "text", text: "Paste delivered; no Enter key appended." }] };
     }
   );
 
