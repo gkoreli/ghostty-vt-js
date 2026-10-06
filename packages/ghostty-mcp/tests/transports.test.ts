@@ -10,6 +10,8 @@ test("MCP advertises the shared workspace operations", async () => {
   const client = new Client({ name: "ghostty-mcp-test", version: "1" });
   try {
     await client.connect(transport);
+    const manifest = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf8"));
+    expect(client.getServerVersion()?.version).toBe(manifest.version);
     const { tools } = await client.listTools();
     expect(tools.map(t => t.name)).toEqual(expect.arrayContaining(["inspect_layout", "change_tab", "paste_text", "spawn_terminal"]));
     const spawn = tools.find(t => t.name === "spawn_terminal")!;

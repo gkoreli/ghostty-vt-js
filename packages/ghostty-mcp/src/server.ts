@@ -6,12 +6,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import packageInfo from "../package.json" with { type: "json" };
 import { listTerminals, readTerminal, sendCommand, pasteText, spawnTerminal, performAction, workspace } from "./core/index.js";
 
 export async function startServer() {
   const server = new McpServer({
     name: "ghostty-mcp",
-    version: "0.1.0",
+    version: packageInfo.version,
   });
 
   server.tool(
@@ -39,7 +40,8 @@ export async function startServer() {
 
   server.tool(
     "send_command",
-    "Submit text line by line, pressing Enter after each line. The final line is submitted even without a newline.",    {
+    "Submit text line by line, pressing Enter after each line. The final line is submitted even without a newline.",
+    {
       terminalId: z.string().describe("Terminal ID"),
       text: z.string().describe("Text to input"),
     },

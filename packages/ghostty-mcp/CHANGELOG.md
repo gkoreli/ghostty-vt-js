@@ -3,6 +3,39 @@
 All notable changes to `@gkoreli/ghostty-mcp` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-10-06
+
+### Added
+
+- Hierarchical `layout` / `inspect_layout` queries with window IDs, tab titles,
+  order, selection, focused terminals, and pane membership. Split geometry is
+  explicitly unavailable rather than inferred.
+- Verified tab rename, select, and close operations through `tab` / `change_tab`,
+  with bounded observation and explicit unverified receipts.
+- `paste` / `paste_text` without an appended Enter key; native startup input
+  through `spawn --input` / `initialInput` as an alternative to direct commands.
+- Explicit target-window selection for tab creation.
+- Domain models and application use cases behind a workspace port, unit and MCP
+  transport tests, and an opt-in disposable-window acceptance test.
+- Repository-local agent skill covering targeting, focus and clipboard effects,
+  session restoration, verification, and troubleshooting.
+
+### Changed
+
+- Tab creation explicitly targets the requested or front window; untargeted
+  splits and actions use the focused terminal instead of global terminal 1.
+- Raw action responses distinguish request acceptance from verified completion.
+- Documentation and tool descriptions disclose focus disruption, clipboard
+  replacement, startup uncertainty, and the absence of general save/restore.
+- MCP handshake version is sourced from package metadata.
+
+### Fixed
+
+- AppleScript string escaping across terminal IDs, input, actions, and spawn
+  configuration; invalid spawn options are rejected before scripting execution.
+- Command-submission descriptions now reflect the existing behavior: Enter is
+  sent after every line, including a final line without a trailing newline.
+
 ## [0.5.0] - 2026-09-19
 
 ### Changed

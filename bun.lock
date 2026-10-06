@@ -10,7 +10,7 @@
     },
     "packages/ghostty-mcp": {
       "name": "@gkoreli/ghostty-mcp",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "bin": {
         "ghostty-mcp": "./dist/ghostty-mcp.js",
       },
