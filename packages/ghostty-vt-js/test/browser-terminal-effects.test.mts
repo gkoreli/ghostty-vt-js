@@ -154,6 +154,13 @@ async function testEffectsEndToEnd(): Promise<void> {
   assert.equal(pwdChanges, 1, "OSC 7 fires pwd-changed effect");
   assert.equal(term.getPwd(), "file://host/home/user", "pwd readable from callback context");
 
+  // CSI 21 t (report window title) is opt-in since vendor/ghostty@38e891e6c:
+  // echoing a program-set title back as input allowed command injection.
+  // With only WRITE_PTY installed, the title must NOT be reported.
+  const before = responses.length;
+  term.write("\x1b]2;\x1b[201~rm -rf ~\x07\x1b[21t");
+  assert.equal(responses.length, before, "CSI 21 t does not echo the title by default");
+
   // Dispose: registrations cleared — further probes produce nothing, no trap.
   effects.dispose();
   term.write("\x1b[6n");

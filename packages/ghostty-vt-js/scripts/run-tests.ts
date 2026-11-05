@@ -9,6 +9,7 @@ const suites = [
   "test/gpu-render-state.test.mts",
   "test/procedural-shapes.test.mts",
   "test/session-authority.test.mts",
+  "test/snapshot-restore.test.mts",
 ] as const;
 
 for (const suite of suites) {
