@@ -410,6 +410,25 @@ export class Terminal {
     );
   }
 
+  /**
+   * Allow or refuse window title reports (CSI 21 t). Mirrors
+   * `ghostty_terminal_set(term, GHOSTTY_TERMINAL_OPT_TITLE_REPORT, &enabled)`.
+   *
+   * Refused by default since vendor/ghostty@38e891e6c: answering puts a
+   * program-controlled string into the pty input, which can inject commands.
+   * Enable it only for programs you trust.
+   */
+  setTitleReport(enabled: boolean): void {
+    this.assertAlive();
+    withBytes(this.ghostty.exports, 1, (ptr) => {
+      new Uint8Array(this.ghostty.exports.memory.buffer)[ptr] = enabled ? 1 : 0;
+      checkResult(
+        "ghostty_terminal_set(OPT_TITLE_REPORT)",
+        this.ghostty.exports.ghostty_terminal_set(this.handle, TerminalOption.TITLE_REPORT, ptr),
+      );
+    });
+  }
+
   /** Run `fn` with a filled `GhosttyTerminalModeConfig` in WASM memory. */
   private withModeConfig<T>(mode: VtMode, value: boolean, fn: (ptr: number, valueOffset: number) => T): T {
     const layouts = this.ghostty.typeLayouts;

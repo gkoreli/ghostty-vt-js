@@ -161,10 +161,20 @@ async function testEffectsEndToEnd(): Promise<void> {
   term.write("\x1b]2;\x1b[201~rm -rf ~\x07\x1b[21t");
   assert.equal(responses.length, before, "CSI 21 t does not echo the title by default");
 
+  // An embedder that trusts its program can opt back in (OPT_TITLE_REPORT).
+  term.write("\x1b]2;safe-title\x07");
+  term.setTitleReport(true);
+  term.write("\x1b[21t");
+  assert.deepEqual(responses.slice(before), ["\x1b]lsafe-title\x1b\\"], "opt-in answers CSI 21 t with the title");
+  term.setTitleReport(false);
+  term.write("\x1b[21t");
+  assert.equal(responses.length, before + 1, "opting out stops title reports again");
+
   // Dispose: registrations cleared — further probes produce nothing, no trap.
+  const atDispose = responses.length;
   effects.dispose();
   term.write("\x1b[6n");
-  assert.equal(responses.length, 2, "no responses after dispose");
+  assert.equal(responses.length, atDispose, "no responses after dispose");
   effects.dispose(); // idempotent
 
   term.dispose();
