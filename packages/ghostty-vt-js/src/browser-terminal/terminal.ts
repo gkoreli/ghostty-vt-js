@@ -222,6 +222,7 @@ export class Terminal implements ITerminalCore {
       convertEol: options.convertEol ?? false,
       disableStdin: options.disableStdin ?? false,
       smoothScrollDuration: options.smoothScrollDuration ?? 100, // Default: 100ms smooth scroll
+      titleReport: options.titleReport ?? false,
     };
 
     // Wrap in Proxy to intercept runtime changes (xterm.js compatibility)
@@ -462,6 +463,7 @@ export class Terminal implements ITerminalCore {
         maxScrollback: this.options.scrollback,
       });
       this.applyThemeToWasm();
+      this.wasmTerm!.setTitleReport(this.options.titleReport);
       this.installTerminalEffects();
 
       // Build OUR subtree instead of styling the consumer's element (the
@@ -1070,6 +1072,7 @@ export class Terminal implements ITerminalCore {
       maxScrollback: this.options.scrollback,
     });
     this.applyThemeToWasm();
+    this.wasmTerm!.setTitleReport(this.options.titleReport);
     this.installTerminalEffects();
 
     // Clear renderer

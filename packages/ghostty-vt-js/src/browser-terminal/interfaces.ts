@@ -51,6 +51,14 @@ export interface ITerminalOptions {
   /** Scheduler-owned per-frame renderer timing instrumentation. */
   rendererTiming?: RendererTimingHooks;
 
+  /**
+   * Answer CSI 21 t (report window title). Default false. A program can set the
+   * title and read it back as pty input, which can inject commands, so enable
+   * this only for programs you trust. Ghostty disables it by default
+   * (vendor/ghostty@38e891e6c).
+   */
+  titleReport?: boolean;
+
   // Phase 1 additions
   convertEol?: boolean; // Convert \n to \r\n (default: false)
   disableStdin?: boolean; // Disable keyboard input (default: false)

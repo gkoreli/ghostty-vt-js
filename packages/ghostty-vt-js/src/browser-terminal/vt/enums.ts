@@ -86,6 +86,12 @@ export const TerminalOption = {
   DESKTOP_NOTIFICATION: 29,
   /** Effect: OSC 9;4 progress report (ConEmu-style). Unwired — see NEXT.md. */
   PROGRESS_REPORT: 30,
+  /**
+   * vendor/ghostty@38e891e6c: answer CSI 21 t with the window title (`bool*`).
+   * Off by default: a program could set a title and read it back into the pty
+   * as input (command injection). NULL or false disables it.
+   */
+  TITLE_REPORT: 32,
   /** vendor/ghostty@cfc19e805: set a mode now. `GhosttyTerminalModeConfig*`. Replaces `ghostty_terminal_mode_set`. */
   MODE: 34,
 } as const;
