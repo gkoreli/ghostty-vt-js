@@ -151,7 +151,58 @@ export class Ghostty {
   createRenderState(): RenderState {
     return new RenderState({ exports: this.exports, typeLayouts: this.typeLayouts });
   }
+
+  /**
+   * Restore a {@link Terminal} from a Ghostty snapshot ("GHOSTSNP"), such as the
+   * first frame of a Rex `rex.data.terminal.v1` stream.
+   *
+   * Wraps `ghostty_snapshot_decoder_new_buf` + `_decode` + `_get(SOURCE_OFFSET)`
+   * from `snapshot.h`. `bytes` may hold more than the snapshot: decoding stops at
+   * the FINISH record and `consumed` says where the snapshot ended, so the
+   * caller can feed the rest (live output) to `terminal.write()`.
+   *
+   * The restored terminal keeps the snapshot's size, screen, cursor, modes,
+   * colors and scrollback. Its `cols`/`rows` are read back from the terminal.
+   *
+   * @throws {Error} When the bytes are not a complete, valid snapshot
+   *   (truncated input returns GHOSTTY_INVALID_VALUE per `snapshot.h`).
+   */
+  restoreTerminal(bytes: Uint8Array): { terminal: Terminal; consumed: number } {
+    const ex = this.exports;
+    const length = bytes.length;
+    if (length === 0) throw new Error("restoreTerminal: empty snapshot");
+    // The decoder borrows these bytes until FINISH or free; keep them alive
+    // for the whole call and free them after the decoder.
+    const dataPtr = ex.ghostty_wasm_alloc_u8_array(length);
+    new Uint8Array(ex.memory.buffer).set(bytes, dataPtr);
+    const decoderOut = ex.ghostty_wasm_alloc_opaque();
+    const terminalOut = ex.ghostty_wasm_alloc_opaque();
+    const offsetOut = ex.ghostty_wasm_alloc_usize();
+    let decoder = 0;
+    try {
+      checkResult("ghostty_snapshot_decoder_new_buf", ex.ghostty_snapshot_decoder_new_buf(0, decoderOut, dataPtr, length));
+      decoder = readU32(ex.memory, decoderOut);
+      checkResult("ghostty_snapshot_decoder_decode", ex.ghostty_snapshot_decoder_decode(decoder, terminalOut));
+      const handle = readU32(ex.memory, terminalOut);
+      checkResult(
+        "ghostty_snapshot_decoder_get(SOURCE_OFFSET)",
+        ex.ghostty_snapshot_decoder_get(decoder, SNAPSHOT_DECODER_DATA_SOURCE_OFFSET, offsetOut),
+      );
+      // size_t is 32-bit on wasm32.
+      const consumed = readU32(ex.memory, offsetOut);
+      return { terminal: Terminal.adopt(this, handle), consumed };
+    } finally {
+      if (decoder) ex.ghostty_snapshot_decoder_free(decoder);
+      ex.ghostty_wasm_free_usize(offsetOut);
+      ex.ghostty_wasm_free_opaque(terminalOut);
+      ex.ghostty_wasm_free_opaque(decoderOut);
+      ex.ghostty_wasm_free_u8_array(dataPtr, length);
+    }
+  }
 }
+
+/** `GHOSTTY_SNAPSHOT_DECODER_DATA_SOURCE_OFFSET` (`snapshot.h`): bytes consumed; at FINISH, the first byte after the snapshot. */
+const SNAPSHOT_DECODER_DATA_SOURCE_OFFSET = 2;
 
 // =============================================================================
 // Terminal — wraps a `GhosttyTerminal` handle
@@ -188,11 +239,15 @@ export class Terminal {
    */
   private readonly scratch: ScratchPool;
 
-  constructor(ghostty: Ghostty, opts: { cols: number; rows: number; maxScrollback: number }) {
+  constructor(ghostty: Ghostty, opts: { cols: number; rows: number; maxScrollback: number }, adoptHandle?: number) {
     this.ghostty = ghostty;
     this._cols = opts.cols;
     this._rows = opts.rows;
     this.scratch = new ScratchPool(ghostty.exports);
+    if (adoptHandle !== undefined) {
+      this.handle = adoptHandle;
+      return;
+    }
 
     // ── ghostty_terminal_new ─────────────────────────────────────────────
     // VT_NOTE: as of vendor/ghostty@6ad1fe7d8 the signature is
@@ -219,6 +274,17 @@ export class Terminal {
         ghostty.exports.ghostty_terminal_set(this.handle, TerminalOption.SCROLLBACK_MAX_LINES, ptr);
       });
     }
+  }
+
+  /**
+   * @internal Wrap a terminal handle the caller already owns, such as one
+   * returned by the snapshot decoder. Size is read from the terminal itself.
+   */
+  static adopt(ghostty: Ghostty, handle: number): Terminal {
+    const probe = new Terminal(ghostty, { cols: 0, rows: 0, maxScrollback: 0 }, handle);
+    probe._cols = probe.getU16(TerminalData.COLS);
+    probe._rows = probe.getU16(TerminalData.ROWS);
+    return probe;
   }
 
   /** Viewport width in cells. Reflects the most recent constructor/resize call. */
@@ -302,9 +368,14 @@ export class Terminal {
   // ─── Modes ─────────────────────────────────────────────────────────────
 
   /**
-   * Read a terminal mode. Mirrors `ghostty_terminal_mode_get(term, mode, &outBool)`
+   * Read a terminal mode. Mirrors `ghostty_terminal_get(term, DATA_MODE, &config)`
    * from `terminal.h` + `modes.h`. Returns `false` for unknown modes (matching
    * the upstream wrapper's behavior, since the renderer pings random modes).
+   *
+   * VT_NOTE: vendor/ghostty@cfc19e805 removed `ghostty_terminal_mode_get` /
+   * `_mode_set` ("ABI BREAKING"). Both are now a `GhosttyTerminalModeConfig`
+   * ({mode: u16, value: bool}) passed to `terminal_get(DATA_MODE)` /
+   * `terminal_set(OPT_MODE)`. The layout comes from `ghostty_type_json()`.
    *
    * Two call shapes:
    *   - `getMode(packedMode)` — packedMode already encodes (value, ansi) per `vtMode()`
@@ -318,23 +389,39 @@ export class Terminal {
     const mode = isAnsi === undefined
       ? (modeOrValue as VtMode)
       : vtMode(modeOrValue as number, isAnsi);
-    const outPtr = this.scratchU8Ptr();
-    new Uint8Array(this.ghostty.exports.memory.buffer)[outPtr] = 0;
-    const result = this.ghostty.exports.ghostty_terminal_mode_get(this.handle, mode, outPtr);
-    if (result !== GhosttyResult.SUCCESS) return false;
-    return readU8(this.ghostty.exports.memory, outPtr) !== 0;
+    return this.withModeConfig(mode, false, (ptr, valueOffset) => {
+      const result = this.ghostty.exports.ghostty_terminal_get(this.handle, TerminalData.MODE, ptr);
+      if (result !== GhosttyResult.SUCCESS) return false;
+      return readU8(this.ghostty.exports.memory, ptr + valueOffset) !== 0;
+    });
   }
 
   /**
-   * Set a terminal mode. Mirrors `ghostty_terminal_mode_set(term, mode, value)`
-   * from `terminal.h` + `modes.h`.
+   * Set a terminal mode. Mirrors `ghostty_terminal_set(term, OPT_MODE, &config)`
+   * from `terminal.h` + `modes.h` (see {@link getMode} for the ABI change).
    */
   setMode(mode: VtMode, value: boolean): void {
     this.assertAlive();
-    checkResult(
-      "ghostty_terminal_mode_set",
-      this.ghostty.exports.ghostty_terminal_mode_set(this.handle, mode, value ? 1 : 0),
+    this.withModeConfig(mode, value, (ptr) =>
+      checkResult(
+        "ghostty_terminal_set(OPT_MODE)",
+        this.ghostty.exports.ghostty_terminal_set(this.handle, TerminalOption.MODE, ptr),
+      ),
     );
+  }
+
+  /** Run `fn` with a filled `GhosttyTerminalModeConfig` in WASM memory. */
+  private withModeConfig<T>(mode: VtMode, value: boolean, fn: (ptr: number, valueOffset: number) => T): T {
+    const layouts = this.ghostty.typeLayouts;
+    const size = structSize(layouts, "GhosttyTerminalModeConfig");
+    const modeOffset = fieldOffset(layouts, "GhosttyTerminalModeConfig", "mode");
+    const valueOffset = fieldOffset(layouts, "GhosttyTerminalModeConfig", "value");
+    return withBytes(this.ghostty.exports, size, (ptr) => {
+      const view = new DataView(this.ghostty.exports.memory.buffer);
+      view.setUint16(ptr + modeOffset, mode, true);
+      view.setUint8(ptr + valueOffset, value ? 1 : 0);
+      return fn(ptr, valueOffset);
+    });
   }
 
   // ─── Keyed `get` ───────────────────────────────────────────────────────

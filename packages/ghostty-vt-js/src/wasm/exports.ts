@@ -87,10 +87,6 @@ export interface GhosttyWasmExports {
   ): number;
   /** `ghostty_terminal_set` — install effects/options on the terminal. terminal.h. */
   ghostty_terminal_set(terminal: number, option: number, valuePtr: number): number;
-  /** `ghostty_terminal_mode_get` — read a mode bit. terminal.h + modes.h. */
-  ghostty_terminal_mode_get(terminal: number, mode: number, outPtr: number): number;
-  /** `ghostty_terminal_mode_set` — set a mode bit. terminal.h + modes.h. */
-  ghostty_terminal_mode_set(terminal: number, mode: number, value: number): number;
   /** `ghostty_terminal_scroll_viewport` — scroll the viewport. terminal.h. */
   ghostty_terminal_scroll_viewport(terminal: number, behaviorPtr: number): void;
   /**
@@ -321,6 +317,18 @@ export interface GhosttyWasmExports {
   ): number;
   /** Destroy a formatter instance. */
   ghostty_formatter_free(formatter: number): void;
+
+  // ─── Snapshot (snapshot.h) ─────────────────────────────────────────────
+  // Restore a terminal from Ghostty's binary snapshot format ("GHOSTSNP").
+  // Used by `restoreSnapshot()` in browser-terminal/snapshot.ts.
+  /** `ghostty_snapshot_decoder_new_buf(allocator, &decoder, ptr, len)`. The bytes are borrowed until FINISH or free. */
+  ghostty_snapshot_decoder_new_buf(allocator: number, outPtr: number, dataPtr: number, length: number): number;
+  /** `ghostty_snapshot_decoder_decode(decoder, &terminal)` — decode through FINISH; the terminal is caller-owned. */
+  ghostty_snapshot_decoder_decode(decoder: number, outTerminalPtr: number): number;
+  /** `ghostty_snapshot_decoder_get(decoder, data, out)` — e.g. SOURCE_OFFSET (`size_t*`). */
+  ghostty_snapshot_decoder_get(decoder: number, data: number, outPtr: number): number;
+  /** `ghostty_snapshot_decoder_free(decoder)` — does not free a terminal it returned. */
+  ghostty_snapshot_decoder_free(decoder: number): void;
 
   // ─── Memory Management (wasm.h) ────────────────────────────────────────
   /** Free a buffer previously allocated by the WASM allocator. */

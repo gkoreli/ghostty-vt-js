@@ -39,6 +39,8 @@ export const TerminalData = {
   // *_DEFAULT color variants, 26-29 kitty image config, not yet surfaced):
   VIEWPORT_ACTIVE: 32,
   VT_PROCESSING_ERROR: 33,
+  /** vendor/ghostty@cfc19e805: mode query. In/out `GhosttyTerminalModeConfig*`. Replaces `ghostty_terminal_mode_get`. */
+  MODE: 37,
 } as const;
 
 /**
@@ -84,6 +86,8 @@ export const TerminalOption = {
   DESKTOP_NOTIFICATION: 29,
   /** Effect: OSC 9;4 progress report (ConEmu-style). Unwired — see NEXT.md. */
   PROGRESS_REPORT: 30,
+  /** vendor/ghostty@cfc19e805: set a mode now. `GhosttyTerminalModeConfig*`. Replaces `ghostty_terminal_mode_set`. */
+  MODE: 34,
 } as const;
 
 /** `GhosttyTerminalScrollViewportTag` from `terminal.h`. */

@@ -123,7 +123,7 @@ we're deliberately API-compatible.
 | Render state | `render.h` | `c-vt-render` | — | ✅ wired (`vt/render-state.ts`) |
 | Key encoding | `key.h`, `key/` | `c-vt-encode-key`, `wasm-key-encode` | [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) | ✅ wired (`KeyEncoder`) |
 | Styles / colors | `style.h`, `color.h` | `c-vt-colors`, `c-vt-color-scheme` | — | ✅ wired; new color utils (contrast/luminance/parse, @4c725242b) unwired |
-| Modes | `modes.h` | `c-vt-modes` | [DEC private modes, ctlseqs §CSI ? Pm h](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_) | ✅ wired (`modeGet`) |
+| Modes | `modes.h` | `c-vt-modes` | [DEC private modes, ctlseqs §CSI ? Pm h](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_) | ✅ wired (`getMode`/`setMode` via `terminal_get(DATA_MODE)` / `terminal_set(OPT_MODE)`; `mode_get/set` removed upstream @cfc19e805) |
 | Mouse encoding | `mouse.h`, `mouse/` | `c-vt-encode-mouse` | ctlseqs §Mouse Tracking | ✅ wired (`vt/mouse.ts` — engine encoder synced from terminal state; hand-rolled SGR/X10 deleted) |
 | Paste safety | `paste.h` | `c-vt-paste` | [bracketed paste, mode 2004](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Bracketed-Paste-Mode) | ✅ wired (`vt/paste.ts` — `paste()` engine-encoded, `isPasteSafe()` exposed) |
 | Focus reporting | `focus.h` | `c-vt-encode-focus` | ctlseqs mode 1004 | ❌ unwired — needed for vim/tmux focus events |
@@ -131,6 +131,7 @@ we're deliberately API-compatible.
 | Selection (engine-side) | `selection.h` | `c-vt-selection`, `c-vt-selection-gesture` | — | ⚠ `selection-manager.ts` is JS-side; upstream gesture API (@f245cdc) could replace it |
 | Kitty graphics | `kitty_graphics.h` | `c-vt-kitty-graphics` | [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/) | ❌ unwired — biggest visible capability gap (inline images) |
 | Formatter | `formatter.h` | `c-vt-formatter`, `zig-formatter` | — | ✅ wired in `terminal-screen-emulator/` only |
+| Snapshot restore | `snapshot.h` | `c-vt-snapshot` | — | ✅ wired (`Ghostty.restoreTerminal()`: one-call decode to FINISH, reports bytes consumed; encode and incremental `ready`/`next` unwired). Tested against a recorded Rex `rex.data.terminal.v1` stream |
 | Unicode width | `unicode.h` | — | [UAX #11](https://www.unicode.org/reports/tr11/), grapheme: [UAX #29](https://www.unicode.org/reports/tr29/) | ❌ unwired — useful for JS-side reflow/measurement |
 | Compression | (terminal.h `compress`) | `c-vt-compression` | — | ❌ unwired — scrollback memory optimization |
 | Desktop notification | `terminal.h` (`OPT_DESKTOP_NOTIFICATION` 29) | — | [OSC 9 / OSC 777](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands) | ❌ unwired — new @6ad1fe7d8; needs a Notification API consent gate |
