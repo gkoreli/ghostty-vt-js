@@ -9,6 +9,35 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
+## [0.6.0] - 2026-11-06
+
+### Added
+
+- **Snapshot restore**: `Ghostty.restoreTerminal(bytes)` returns
+  `{ terminal, consumed }`. It decodes a Ghostty snapshot (`GHOSTSNP`) through
+  its FINISH record (`ghostty_snapshot_decoder_new_buf` + `_decode` +
+  `_get(SOURCE_OFFSET)`, `snapshot.h`). `consumed` marks where the snapshot
+  ends, so the rest of a stream, such as Rex's `rex.data.terminal.v1`, can be
+  passed to `terminal.write()`. Tested against a recorded Rex stream.
+- **Window title reports are opt-in**: `ITerminalOptions.titleReport` (default
+  `false`) and `Terminal.setTitleReport()` wrap
+  `GHOSTTY_TERMINAL_OPT_TITLE_REPORT`. The option is reapplied after `reset()`.
+
+### Changed
+
+- **WASM rebuilt from the pinned Ghostty** (`vendor/ghostty@09557e9`). The
+  previously shipped binary predated the pin. A clean rebuild is reproducible
+  (sha256 `7cf0d42c…`). It adds the snapshot and continuation C API.
+- **`CSI 21 t` is no longer answered by default** (vendor/ghostty@38e891e6c).
+  A program could set a window title and read it back into the pty as input,
+  which allowed command injection. Set `titleReport: true` only for programs
+  you trust.
+- **`getMode`/`setMode`** now use `terminal_get(DATA_MODE)` /
+  `terminal_set(OPT_MODE)` with `GhosttyTerminalModeConfig`. Upstream removed
+  `ghostty_terminal_mode_get`/`_mode_set` (vendor/ghostty@cfc19e805). The
+  public methods keep their signatures. Code that called the removed WASM
+  exports directly must switch to them.
+
 ## [0.5.0] - 2026-09-19
 
 ### Changed
