@@ -24,7 +24,8 @@ permissions:
 jobs:
   release:
     if: ${{ github.event_name == 'push' || github.ref == 'refs/heads/main' }}
-    runs-on: macos-14
+    # macos-14 was retired on 2026-11-02. Stays on macOS because ghostty-mcp is darwin-only.
+    runs-on: macos-15
     timeout-minutes: 35
     environment: npm
     steps:

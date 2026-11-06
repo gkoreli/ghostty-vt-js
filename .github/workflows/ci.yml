@@ -14,7 +14,9 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: macos-14
+    # macos-14 was retired on 2026-11-02 and now fails before any step runs.
+    # Every check here (both packages, the darwin-only ghostty-mcp pack included) passes on Linux.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out source
