@@ -19,6 +19,7 @@ import type { GhosttyTerminal } from './ghostty.js';
 import type { IEvent } from './interfaces.js';
 import type { ITerminalRenderer } from './renderer-interface.js';
 import type { Terminal } from './terminal.js';
+import { selectedLineText } from './selection-text.js';
 import type { GhosttyCell } from './types.js';
 
 // ============================================================================
@@ -158,46 +159,16 @@ export class SelectionManager {
 
       if (!line) continue;
 
-      // Track the last non-empty column for trimming trailing spaces
-      let lastNonEmpty = -1;
-
       // Determine column range for this row
       const colStart = absRow === startAbsRow ? startCol : 0;
       const colEnd = absRow === endAbsRow ? endCol : line.length - 1;
 
-      // Build the line text
-      let lineText = '';
-      for (let col = colStart; col <= colEnd; col++) {
-        const cell = line[col];
-        if (cell && cell.codepoint !== 0) {
-          // Use grapheme lookup for cells with multi-codepoint characters
-          let char: string;
-          if (cell.grapheme_len > 0) {
-            // Row is in scrollback or screen - determine which and use appropriate method
-            if (absRow < scrollbackLength) {
-              char = this.wasmTerm.getScrollbackGraphemeString(absRow, col);
-            } else {
-              const screenRow = absRow - scrollbackLength;
-              char = this.wasmTerm.getGraphemeString(screenRow, col);
-            }
-          } else {
-            char = String.fromCodePoint(cell.codepoint);
-          }
-          lineText += char;
-          if (char.trim()) {
-            lastNonEmpty = lineText.length;
-          }
-        } else {
-          lineText += ' ';
-        }
-      }
-
-      // Trim trailing spaces from each line
-      if (lastNonEmpty >= 0) {
-        lineText = lineText.substring(0, lastNonEmpty);
-      } else {
-        lineText = '';
-      }
+      // Use grapheme lookup for cells with multi-codepoint characters, from scrollback or the screen as the row is
+      const lineText = selectedLineText(line, colStart, colEnd, (col) =>
+        absRow < scrollbackLength
+          ? this.wasmTerm.getScrollbackGraphemeString(absRow, col)
+          : this.wasmTerm.getGraphemeString(absRow - scrollbackLength, col),
+      );
 
       text += lineText;
 

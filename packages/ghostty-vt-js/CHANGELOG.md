@@ -9,6 +9,13 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
+## [Unreleased]
+
+### Fixed
+
+- Copying a selection no longer adds a space after each wide character (an emoji, a CJK character). A cell of width
+  0, a wide character's second half (Ghostty's spacer tail), adds nothing. `selectedLineText` is the rule.
+
 ## [0.7.0] - 2026-11-26
 
 ### Added
