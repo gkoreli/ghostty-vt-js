@@ -9,7 +9,7 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
-## [Unreleased]
+## [0.7.1] - 2026-11-26
 
 ### Fixed
 
