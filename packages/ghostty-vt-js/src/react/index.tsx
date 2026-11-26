@@ -37,11 +37,9 @@ import type {
   TerminalGrid,
   TerminalServerFrame,
 } from '../protocol/index.js';
-import { reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
+import { reconnectDelay, reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
 
-export { reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
-
-const DEFAULT_RECONNECT_DELAY_MS = 1_500;
+export { reconnectDelay, reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
 
 export interface GhosttyTerminalProps {
   /** Session to attach to. Changing it tears down and re-attaches. */
@@ -64,7 +62,10 @@ export interface GhosttyTerminalProps {
    * re-attaches. Default false.
    */
   watch?: boolean;
-  /** Reconnect backoff. Default 1500ms. Set 0 to disable reconnect. */
+  /**
+   * A fixed wait before each reconnect, in ms; 0 turns reconnecting off. Default: backoff with jitter
+   * ({@link reconnectDelay}), the first reconnect within 100 ms, and at once when the browser comes back online.
+   */
   reconnectDelayMs?: number;
   /**
    * Whether to reconnect after the socket closes. Default: always. Return false for a close that says trying again is
@@ -89,7 +90,7 @@ export function GhosttyTerminal({
   url,
   className,
   options,
-  reconnectDelayMs = DEFAULT_RECONNECT_DELAY_MS,
+  reconnectDelayMs,
   watch = false,
   style,
   onExit,
@@ -113,6 +114,8 @@ export function GhosttyTerminal({
     let terminal: Terminal | null = null;
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    // Reconnects in a row since the last attach: the backoff's attempt, back to 0 once a session attaches.
+    let attempts = 0;
 
     const send = (frame: TerminalClientFrame): void => {
       if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(frame));
@@ -122,6 +125,7 @@ export function GhosttyTerminal({
       if (!terminal || disposed) return;
       switch (frame.kind) {
         case 'attached':
+          attempts = 0;
           // The host's decision wins over our proposal, always.
           terminal.applyGeometry(frame.geometry);
           // Self-contained screen state (RIS-prefixed), not a byte fragment.
@@ -144,6 +148,7 @@ export function GhosttyTerminal({
     };
 
     const connect = (): void => {
+      retryTimer = null;
       if (disposed || !terminal) return;
       const absolute = /^wss?:/.test(url)
         ? url
@@ -169,9 +174,18 @@ export function GhosttyTerminal({
         const close: TerminalSocketClose = { code: event.code, reason: event.reason };
         callbacks.current.onClose?.(close);
         if (!reconnectsAfter(close, reconnectDelayMs, callbacks.current.shouldReconnect)) return;
-        retryTimer = setTimeout(connect, reconnectDelayMs);
+        attempts += 1;
+        retryTimer = setTimeout(connect, reconnectDelayMs ?? reconnectDelay(attempts));
       };
     };
+
+    // Back online, a waiting reconnect goes now rather than when its wait ends.
+    const reconnectNow = (): void => {
+      if (!retryTimer) return;
+      clearTimeout(retryTimer);
+      connect();
+    };
+    window.addEventListener('online', reconnectNow);
 
     void (async () => {
       await init();
@@ -194,6 +208,7 @@ export function GhosttyTerminal({
 
     return () => {
       disposed = true;
+      window.removeEventListener('online', reconnectNow);
       if (retryTimer) clearTimeout(retryTimer);
       // Detach, never kill: the session outlives this component.
       socket?.close();
