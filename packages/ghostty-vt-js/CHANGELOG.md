@@ -31,6 +31,10 @@ patch = fixes).
 
 ### Changed
 
+- `<GhosttyTerminal>` reconnects with backoff and jitter by default. The first reconnect comes within 100 ms, each
+  later one waits a random time below a ceiling that doubles up to 5 s (`reconnectDelay`, AWS's "full jitter"), the
+  count starts again once a session attaches, and a waiting reconnect goes at once when the browser comes back online.
+  It waited a fixed 1500 ms. `reconnectDelayMs` still sets a fixed wait, and 0 still turns reconnecting off.
 - `TerminalSessionHost` drops `input` and `kill` from a client that has not attached; it used to forward them.
 
 ### Fixed
