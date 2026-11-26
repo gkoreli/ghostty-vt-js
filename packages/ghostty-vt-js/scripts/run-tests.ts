@@ -10,7 +10,7 @@ const suites = [
   "test/procedural-shapes.test.mts",
   "test/session-authority.test.mts",
   "test/snapshot-restore.test.mts",
-  "test/client-flags-and-links.test.mts",
+  "test/watchers-and-links.test.mts",
 ] as const;
 
 for (const suite of suites) {

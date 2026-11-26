@@ -13,14 +13,14 @@ patch = fixes).
 
 ### Added
 
-- **Client attach flags**, tmux's own: `attach` takes `flags: ['read-only', 'ignore-size']` (tmux(1),
-  `attach-session -f`; `-r` sets both). `TerminalSessionHost` enforces them: a `read-only` client's `input` and
-  `kill` are dropped, and an `ignore-size` client's proposal does not affect the size while any attached client
-  without the flag is attached, as tmux's `ignore_client_size` (`resize.c`) decides. When every attached client has
-  it, their proposals decide, so the host still never invents a size. Flags are fixed by a client's attach.
-  `sizingProposals(clients)` is the rule, pure, for other hosts.
-- **`<GhosttyTerminal lookOnly />`**: attaches with both flags, takes no input (`disableStdin`), and sends no
-  proposal or input after its attach's own measurement.
+- **Watchers** (the protocol's rule 5): `attach` takes `watch: true`. A watcher receives the decided grid, the replay
+  and every frame after them, and nothing it sends reaches the pty: `TerminalSessionHost` drops its `input` and
+  `kill`, and never counts its proposals, even when it is the only client attached. With no other client attached the
+  grid stays as it was, so only clients that may type decide the size. A client's first attach fixes it. This is
+  Zellij's `zellij watch` (0.44.0). tmux's `attach -r` differs: a client with `ignore-size` sizes the window when
+  every attached client has the flag.
+- **`<GhosttyTerminal watch />`**: attaches as a watcher, takes no input (`disableStdin`), and sends nothing after its
+  attach.
 - **`linkSchemes`** terminal option: a link opens only when the WHATWG URL parser reads one of the listed schemes
   (`['https']`), at the one place a click opens a link. `linkOpens(uri, schemes)` is the rule. Default unchanged:
   every link opens.
