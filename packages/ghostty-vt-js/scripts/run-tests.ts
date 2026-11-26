@@ -13,6 +13,7 @@ const suites = [
   "test/watchers-and-links.test.mts",
   "test/socket-close.test.mts",
   "test/selection-text.test.mts",
+  "test/server-frame.test.mts",
 ] as const;
 
 for (const suite of suites) {
