@@ -33,12 +33,16 @@ import { useEffect, useRef } from 'react';
 import { init, Terminal, type ITerminalOptions } from '../browser-terminal/index.js';
 import type { RendererFailure } from '../browser-terminal/interfaces.js';
 import type {
+  TerminalClientFlag,
   TerminalClientFrame,
   TerminalGrid,
   TerminalServerFrame,
 } from '../protocol/index.js';
 
 const DEFAULT_RECONNECT_DELAY_MS = 1_500;
+
+/** A look-only client's flags: tmux's `attach -r` (tmux(1): "-r is an alias for -f read-only,ignore-size"). */
+export const LOOK_ONLY_FLAGS: readonly TerminalClientFlag[] = ['read-only', 'ignore-size'];
 
 export interface GhosttyTerminalProps {
   /** Session to attach to. Changing it tears down and re-attaches. */
@@ -55,6 +59,12 @@ export interface GhosttyTerminalProps {
   style?: React.CSSProperties;
   /** Terminal appearance/behavior. Geometry is NOT configurable here — the host decides it. */
   options?: Omit<ITerminalOptions, 'cols' | 'rows'>;
+  /**
+   * Attach to look, not to type: the client attaches with {@link LOOK_ONLY_FLAGS}, its engine takes no input
+   * (`disableStdin`), and after the attach's own measurement (rule 2) it sends no proposal and no input. The host
+   * enforces the same flags, so a modified client gains nothing. Changing it re-attaches. Default false.
+   */
+  lookOnly?: boolean;
   /** Reconnect backoff. Default 1500ms. Set 0 to disable reconnect. */
   reconnectDelayMs?: number;
   /** The session's process exited. */
@@ -73,6 +83,7 @@ export function GhosttyTerminal({
   className,
   options,
   reconnectDelayMs = DEFAULT_RECONNECT_DELAY_MS,
+  lookOnly = false,
   style,
   onExit,
   onTitleChange,
@@ -133,7 +144,7 @@ export function GhosttyTerminal({
       socket.onopen = () => {
         // The proposal rides the attach frame — the whole point. There is no
         // "send dimensions once connected" step left to drop.
-        send({ kind: 'attach', sessionId, viewport: terminal!.proposal });
+        send({ kind: 'attach', sessionId, viewport: terminal!.proposal, ...(lookOnly ? { flags: LOOK_ONLY_FLAGS } : {}) });
       };
       socket.onmessage = (event) => {
         let frame: TerminalServerFrame;
@@ -154,13 +165,15 @@ export function GhosttyTerminal({
       await init();
       if (disposed) return;
 
-      terminal = new Terminal({ ...optionsRef.current });
+      terminal = new Terminal({ ...optionsRef.current, ...(lookOnly ? { disableStdin: true } : {}) });
       terminal.open(host);
 
-      // Keystrokes and engine-generated query responses (DSR/DA) go to the pty.
-      terminal.onData((data) => send({ kind: 'input', data }));
-      // Measurements are proposals, never applied locally.
-      terminal.onProposal((viewport: TerminalGrid) => send({ kind: 'viewport', viewport }));
+      if (!lookOnly) {
+        // Keystrokes and engine-generated query responses (DSR/DA) go to the pty.
+        terminal.onData((data) => send({ kind: 'input', data }));
+        // Measurements are proposals, never applied locally.
+        terminal.onProposal((viewport: TerminalGrid) => send({ kind: 'viewport', viewport }));
+      }
       terminal.onTitleChange((title) => callbacks.current.onTitleChange?.(title));
       terminal.onRendererFailure((failure) => callbacks.current.onRendererFailure?.(failure));
 
@@ -174,7 +187,7 @@ export function GhosttyTerminal({
       socket?.close();
       terminal?.dispose();
     };
-  }, [sessionId, url, reconnectDelayMs]);
+  }, [sessionId, url, reconnectDelayMs, lookOnly]);
 
   return (
     <div

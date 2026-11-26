@@ -145,3 +145,4 @@ export {
 export { OSC8LinkProvider } from './providers/osc8-link-provider.js';
 export { UrlRegexProvider } from './providers/url-regex-provider.js';
 export { LinkDetector } from './link-detector.js';
+export { linkOpens } from './link-policy.js';

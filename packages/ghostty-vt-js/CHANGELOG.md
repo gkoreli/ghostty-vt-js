@@ -9,6 +9,31 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
+## [Unreleased]
+
+### Added
+
+- **Client attach flags**, tmux's own: `attach` takes `flags: ['read-only', 'ignore-size']` (tmux(1),
+  `attach-session -f`; `-r` sets both). `TerminalSessionHost` enforces them: a `read-only` client's `input` and
+  `kill` are dropped, and an `ignore-size` client's proposal does not affect the size while any attached client
+  without the flag is attached, as tmux's `ignore_client_size` (`resize.c`) decides. When every attached client has
+  it, their proposals decide, so the host still never invents a size. Flags are fixed by a client's attach.
+  `sizingProposals(clients)` is the rule, pure, for other hosts.
+- **`<GhosttyTerminal lookOnly />`**: attaches with both flags, takes no input (`disableStdin`), and sends no
+  proposal or input after its attach's own measurement.
+- **`linkSchemes`** terminal option: a link opens only when the WHATWG URL parser reads one of the listed schemes
+  (`['https']`), at the one place a click opens a link. `linkOpens(uri, schemes)` is the rule. Default unchanged:
+  every link opens.
+
+### Changed
+
+- `TerminalSessionHost` drops `input` and `kill` from a client that has not attached; it used to forward them.
+
+### Fixed
+
+- The protocol's frames call `input` and `output` text, as the engine treats them (a string it encodes as UTF-8),
+  not "byte-exact (latin1 string)".
+
 ## [0.6.0] - 2026-11-06
 
 ### Added

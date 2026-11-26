@@ -44,6 +44,7 @@ import type {
   RendererFailure,
 } from './interfaces.js';
 import { LinkDetector } from './link-detector.js';
+import { linkOpens } from './link-policy.js';
 import { OSC8LinkProvider } from './providers/osc8-link-provider.js';
 import { UrlRegexProvider } from './providers/url-regex-provider.js';
 import { DEFAULT_THEME, DEFAULT_FONT_FAMILY } from './renderer.js';
@@ -223,6 +224,7 @@ export class Terminal implements ITerminalCore {
       disableStdin: options.disableStdin ?? false,
       smoothScrollDuration: options.smoothScrollDuration ?? 100, // Default: 100ms smooth scroll
       titleReport: options.titleReport ?? false,
+      linkSchemes: options.linkSchemes,
     };
 
     // Wrap in Proxy to intercept runtime changes (xterm.js compatibility)
@@ -1768,7 +1770,8 @@ export class Terminal implements ITerminalCore {
     // Get the link at this position
     const link = await this.linkDetector.getLinkAt(x, bufferRow);
 
-    if (link) {
+    // Only a link whose scheme the options allow opens (ITerminalOptions.linkSchemes).
+    if (link && linkOpens(link.text, this.options.linkSchemes)) {
       // Activate link
       link.activate(e);
 
