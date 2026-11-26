@@ -56,6 +56,18 @@ export type GeometryPolicy =
   /** Ignore proposals; geometry is set out of band. */
   | 'manual';
 
+/**
+ * A client's attach flags: tmux's own, with tmux's meaning (tmux(1), `attach-session -f`; `-r` sets both).
+ *
+ * - `read-only`: the client's `input` and `kill` frames have no effect; the host drops them.
+ * - `ignore-size`: the client's proposal does not affect the size while any attached client without this flag is
+ *   attached. When every attached client has it, their proposals decide, so the host still never invents a size
+ *   (rule 2; tmux's `resize.c`, `ignore_client_size`).
+ *
+ * A client's flags are set by its `attach` and do not change while it stays attached.
+ */
+export type TerminalClientFlag = 'read-only' | 'ignore-size';
+
 /** Client → host. */
 export type TerminalClientFrame =
   /**
@@ -63,10 +75,10 @@ export type TerminalClientFrame =
    * proposal is mandatory: a host must never have to invent a default
    * (rule 2 above).
    */
-  | { readonly kind: 'attach'; readonly sessionId: string; readonly viewport: TerminalGrid }
+  | { readonly kind: 'attach'; readonly sessionId: string; readonly viewport: TerminalGrid; readonly flags?: readonly TerminalClientFlag[] }
   /** A new proposal (host box resized, font changed). Still only a proposal. */
   | { readonly kind: 'viewport'; readonly viewport: TerminalGrid }
-  /** Keystrokes and query responses, byte-exact (latin1 string). */
+  /** Keystrokes and query responses, as text: a JavaScript string, which the host writes to the pty as UTF-8. */
   | { readonly kind: 'input'; readonly data: string }
   /** Terminate the session's process. */
   | { readonly kind: 'kill' };
@@ -89,12 +101,24 @@ export type TerminalServerFrame =
    * client attached, or policy re-arbitrated). Ordered with `output`.
    */
   | { readonly kind: 'geometry'; readonly geometry: TerminalGrid }
-  /** PTY output, byte-exact (latin1 string). */
+  /** PTY output, as text: the host decodes the pty's UTF-8 with one streaming decoder, and the client's engine encodes it again. */
   | { readonly kind: 'output'; readonly data: string }
   /** The process exited. */
   | { readonly kind: 'exit'; readonly code: number | null }
   /** Protocol or session error; the client may surface it in-band. */
   | { readonly kind: 'error'; readonly message: string };
+
+/**
+ * The proposals that decide the size, in attach order: those of the clients without `ignore-size`, or, when every
+ * attached client has it, all of them (tmux's `resize.c`, `ignore_client_size`). Pure, so the decision depends on
+ * nothing but the attached clients, their order and their flags.
+ */
+export function sizingProposals(
+  clients: readonly { readonly viewport: TerminalGrid; readonly flags?: readonly TerminalClientFlag[] }[],
+): TerminalGrid[] {
+  const counted = clients.filter((client) => !client.flags?.includes('ignore-size'));
+  return (counted.length > 0 ? counted : clients).map((client) => ({ ...client.viewport }));
+}
 
 /**
  * Arbitrate a decided grid from the currently attached clients' proposals.

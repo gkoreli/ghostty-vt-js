@@ -62,6 +62,11 @@ export interface ITerminalOptions {
   // Phase 1 additions
   convertEol?: boolean; // Convert \n to \r\n (default: false)
   disableStdin?: boolean; // Disable keyboard input (default: false)
+  /**
+   * The URI schemes a link opens with, without the colon (`['https']`). A link of any other scheme, or one the URL
+   * parser rejects, does not open. Default: every link the providers find opens, as before.
+   */
+  linkSchemes?: readonly string[];
 
   // Scrolling options
   /**
