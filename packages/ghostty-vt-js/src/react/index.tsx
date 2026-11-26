@@ -33,16 +33,12 @@ import { useEffect, useRef } from 'react';
 import { init, Terminal, type ITerminalOptions } from '../browser-terminal/index.js';
 import type { RendererFailure } from '../browser-terminal/interfaces.js';
 import type {
-  TerminalClientFlag,
   TerminalClientFrame,
   TerminalGrid,
   TerminalServerFrame,
 } from '../protocol/index.js';
 
 const DEFAULT_RECONNECT_DELAY_MS = 1_500;
-
-/** A look-only client's flags: tmux's `attach -r` (tmux(1): "-r is an alias for -f read-only,ignore-size"). */
-export const LOOK_ONLY_FLAGS: readonly TerminalClientFlag[] = ['read-only', 'ignore-size'];
 
 export interface GhosttyTerminalProps {
   /** Session to attach to. Changing it tears down and re-attaches. */
@@ -60,11 +56,11 @@ export interface GhosttyTerminalProps {
   /** Terminal appearance/behavior. Geometry is NOT configurable here — the host decides it. */
   options?: Omit<ITerminalOptions, 'cols' | 'rows'>;
   /**
-   * Attach to look, not to type: the client attaches with {@link LOOK_ONLY_FLAGS}, its engine takes no input
-   * (`disableStdin`), and after the attach's own measurement (rule 2) it sends no proposal and no input. The host
-   * enforces the same flags, so a modified client gains nothing. Changing it re-attaches. Default false.
+   * Attach as a watcher (the protocol's rule 5): the engine takes no input (`disableStdin`), and after its attach
+   * the client sends nothing. The host enforces the same rule, so a modified client gains nothing. Changing it
+   * re-attaches. Default false.
    */
-  lookOnly?: boolean;
+  watch?: boolean;
   /** Reconnect backoff. Default 1500ms. Set 0 to disable reconnect. */
   reconnectDelayMs?: number;
   /** The session's process exited. */
@@ -83,7 +79,7 @@ export function GhosttyTerminal({
   className,
   options,
   reconnectDelayMs = DEFAULT_RECONNECT_DELAY_MS,
-  lookOnly = false,
+  watch = false,
   style,
   onExit,
   onTitleChange,
@@ -144,7 +140,7 @@ export function GhosttyTerminal({
       socket.onopen = () => {
         // The proposal rides the attach frame — the whole point. There is no
         // "send dimensions once connected" step left to drop.
-        send({ kind: 'attach', sessionId, viewport: terminal!.proposal, ...(lookOnly ? { flags: LOOK_ONLY_FLAGS } : {}) });
+        send({ kind: 'attach', sessionId, viewport: terminal!.proposal, ...(watch ? { watch: true } : {}) });
       };
       socket.onmessage = (event) => {
         let frame: TerminalServerFrame;
@@ -165,10 +161,10 @@ export function GhosttyTerminal({
       await init();
       if (disposed) return;
 
-      terminal = new Terminal({ ...optionsRef.current, ...(lookOnly ? { disableStdin: true } : {}) });
+      terminal = new Terminal({ ...optionsRef.current, ...(watch ? { disableStdin: true } : {}) });
       terminal.open(host);
 
-      if (!lookOnly) {
+      if (!watch) {
         // Keystrokes and engine-generated query responses (DSR/DA) go to the pty.
         terminal.onData((data) => send({ kind: 'input', data }));
         // Measurements are proposals, never applied locally.
@@ -187,7 +183,7 @@ export function GhosttyTerminal({
       socket?.close();
       terminal?.dispose();
     };
-  }, [sessionId, url, reconnectDelayMs, lookOnly]);
+  }, [sessionId, url, reconnectDelayMs, watch]);
 
   return (
     <div

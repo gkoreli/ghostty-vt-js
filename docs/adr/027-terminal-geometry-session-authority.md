@@ -286,6 +286,35 @@ over N copies of the protocol.
 - Consumers must migrate both protocol endpoints together; partial adoption reintroduces
   competing geometry authorities and must not be released.
 
+## Amendment (2026-11-26): a watcher never decides
+
+A client may attach as a watcher (`attach` with `watch: true`, the protocol's rule 5). The host sends it the decided
+grid, the replay and every frame after them, and drops everything it sends: its `input`, its `kill`, and its
+proposals, which never count, even when it is the only client attached. With no other client attached the grid stays
+as the others left it, initially the spawn size. So the decision depends on the proposals of the clients that may
+type, in attach order, and on nothing else. Who attaches as a watcher is the application's to decide; the host keeps
+the rule.
+
+Prior art, read 2026-11-26:
+
+- Zellij 0.44.0 added read-only session sharing, "without being able to affect them through keyboard/mouse input or
+  window resizes" ([release notes](https://zellij.dev/news/remote-sessions-windows-cli/)). Its server keeps watchers
+  apart from the clients that size the screen (`zellij-server/src/lib.rs`, `SessionState.watchers`), and a
+  watcher's own size only crops and pads what is sent to it (`zellij-server/src/screen.rs`, `set_watcher_size`).
+- tmux keeps a window's size when no client counts (`resize.c`, `recalculate_size`). Its `ignore-size` client
+  flag is a different rule: a flagged client yields to clients without the flag, and sizes the window when every
+  client has it (`ignore_client_size`; CHANGES: "Do not let read-only clients limit the size, unless all clients
+  are read-only"). That suits tmux, where every client is someone at a terminal of their own. It does not suit a
+  watcher, whose size would reflow the session's program while the person who types is away.
+- Inside tmux the nearest case is a control-mode client, which counts only once it has set a size with
+  `refresh-client -C` (`ignore_client_size`, `CLIENT_CONTROL`).
+- herdr-core's attach protocol: "The last active viewer sets the size (active: it attached, typed, resized or gained
+  focus); `observe` viewers never type or resize" ([schema README](https://github.com/herdrdev/herdr-core/blob/master/schema/README.md)).
+- Rex (Superlogical), a multiplexer with live sharing built in: "When the clients attached to a session want
+  different things for a block, such as a terminal's size, the block follows its owner. Owning a block gives no other
+  rights over it." A client that never claims a block never sizes it, and a block whose owner leaves with no one in
+  line is left with no owner ([Server API](https://www.superlogical.com/rex/docs/reference/api.md),
+  `session.own_block`, `session.disown_block`).
 
 ## Re-evaluation triggers
 

@@ -30,6 +30,15 @@
  *    self-contained sequence that reconstructs the screen (the replay design).
  *    A raw scrollback slice can begin mid escape sequence and carries none of
  *    the mode/SGR/cursor state its discarded prefix established.
+ * 5. **A watcher sees and never acts.** A client that attaches with `watch`
+ *    receives the decided grid, the replay and every frame after them, and
+ *    nothing it sends reaches the pty: its `input` and `kill` are dropped, and
+ *    its proposals never count, even when it is the only client attached. The
+ *    grid is decided by the attached clients that are not watchers; with none
+ *    attached it stays as they last left it (the spawn size if none has
+ *    attached yet). Zellij's watchers behave the same way (`zellij watch`,
+ *    0.44.0), and tmux likewise keeps a window's size when no client counts
+ *    (`resize.c`, `recalculate_size`).
  */
 
 /** A cell grid. Cols/rows only — pixels never cross the wire. */
@@ -56,26 +65,16 @@ export type GeometryPolicy =
   /** Ignore proposals; geometry is set out of band. */
   | 'manual';
 
-/**
- * A client's attach flags: tmux's own, with tmux's meaning (tmux(1), `attach-session -f`; `-r` sets both).
- *
- * - `read-only`: the client's `input` and `kill` frames have no effect; the host drops them.
- * - `ignore-size`: the client's proposal does not affect the size while any attached client without this flag is
- *   attached. When every attached client has it, their proposals decide, so the host still never invents a size
- *   (rule 2; tmux's `resize.c`, `ignore_client_size`).
- *
- * A client's flags are set by its `attach` and do not change while it stays attached.
- */
-export type TerminalClientFlag = 'read-only' | 'ignore-size';
-
 /** Client → host. */
 export type TerminalClientFrame =
   /**
    * Attach to a session, carrying the client's geometry proposal. The
    * proposal is mandatory: a host must never have to invent a default
-   * (rule 2 above).
+   * (rule 2 above). `watch` attaches a watcher (rule 5), whose proposal
+   * never counts. A client's first attach fixes it, so attaching again cannot
+   * make a watcher type.
    */
-  | { readonly kind: 'attach'; readonly sessionId: string; readonly viewport: TerminalGrid; readonly flags?: readonly TerminalClientFlag[] }
+  | { readonly kind: 'attach'; readonly sessionId: string; readonly viewport: TerminalGrid; readonly watch?: boolean }
   /** A new proposal (host box resized, font changed). Still only a proposal. */
   | { readonly kind: 'viewport'; readonly viewport: TerminalGrid }
   /** Keystrokes and query responses, as text: a JavaScript string, which the host writes to the pty as UTF-8. */
@@ -107,18 +106,6 @@ export type TerminalServerFrame =
   | { readonly kind: 'exit'; readonly code: number | null }
   /** Protocol or session error; the client may surface it in-band. */
   | { readonly kind: 'error'; readonly message: string };
-
-/**
- * The proposals that decide the size, in attach order: those of the clients without `ignore-size`, or, when every
- * attached client has it, all of them (tmux's `resize.c`, `ignore_client_size`). Pure, so the decision depends on
- * nothing but the attached clients, their order and their flags.
- */
-export function sizingProposals(
-  clients: readonly { readonly viewport: TerminalGrid; readonly flags?: readonly TerminalClientFlag[] }[],
-): TerminalGrid[] {
-  const counted = clients.filter((client) => !client.flags?.includes('ignore-size'));
-  return (counted.length > 0 ? counted : clients).map((client) => ({ ...client.viewport }));
-}
 
 /**
  * Arbitrate a decided grid from the currently attached clients' proposals.

@@ -27,10 +27,8 @@
 
 import {
   arbitrateGeometry,
-  sizingProposals,
   gridEquals,
   type GeometryPolicy,
-  type TerminalClientFlag,
   type TerminalClientFrame,
   type TerminalGrid,
   type TerminalServerFrame,
@@ -58,7 +56,7 @@ export interface TerminalSessionHostOptions {
   pty: PtyHandle;
   /**
    * The pty's size at spawn. The host treats this as provisional: the first
-   * attach proposal replaces it. Pass the same value used for the spawn so the
+   * proposal from a client that is not a watcher replaces it. Pass the same value used for the spawn so the
    * mirror engine starts consistent with the pty.
    */
   initialGeometry: TerminalGrid;
@@ -74,8 +72,8 @@ export class TerminalSessionHost {
   private readonly policy: GeometryPolicy;
   private readonly screen: TerminalScreen;
   /** Attach order matters for `latest`; Map preserves insertion order. */
-  /** Attached clients, in attach order: each one's latest proposal, and its flags as its attach set them. */
-  private readonly clients = new Map<TerminalClient, { readonly viewport: TerminalGrid; readonly flags: readonly TerminalClientFlag[] }>();
+  /** Attached clients, in attach order: each one's latest proposal, and whether its first attach made it a watcher. */
+  private readonly clients = new Map<TerminalClient, { readonly viewport: TerminalGrid; readonly watch: boolean }>();
   private _geometry: TerminalGrid;
   private disposed = false;
 
@@ -130,11 +128,11 @@ export class TerminalSessionHost {
    * send happen in one uninterrupted step, so no `output` frame can land
    * between them.
    */
-  attach(client: TerminalClient, viewport: TerminalGrid, flags: readonly TerminalClientFlag[] = []): void {
+  attach(client: TerminalClient, viewport: TerminalGrid, watch = false): void {
     if (this.disposed) return;
-    // A client's flags are its first attach's: attaching again cannot make a read-only client writable.
+    // Whether a client watches is its first attach's: attaching again cannot make a watcher type (rule 5).
     const attached = this.clients.get(client);
-    this.clients.set(client, { viewport: { ...viewport }, flags: attached ? attached.flags : [...flags] });
+    this.clients.set(client, { viewport: { ...viewport }, watch: attached ? attached.watch : watch });
     // Re-arbitrate first: the replay must describe the screen at the geometry
     // the client is about to adopt, not the previous one. The newcomer is
     // excluded from the broadcast — its decided geometry rides the `attached`
@@ -157,18 +155,19 @@ export class TerminalSessionHost {
 
   /**
    * Handle a client frame. `viewport` is a proposal that may or may not become
-   * the decision. `input` and `kill` take effect only from an attached client
-   * that is not `read-only`; from any other they are dropped.
+   * the decision, unless it comes from a watcher. `input` and `kill` take
+   * effect only from an attached client that is not a watcher; from any other
+   * they are dropped (rule 5).
    */
   handle(client: TerminalClient, frame: TerminalClientFrame): void {
     if (this.disposed) return;
     switch (frame.kind) {
       case "attach":
-        this.attach(client, frame.viewport, frame.flags ?? []);
+        this.attach(client, frame.viewport, frame.watch === true);
         return;
       case "viewport": {
         const attached = this.clients.get(client);
-        if (!attached) return; // proposals from detached clients are noise
+        if (!attached || attached.watch) return; // proposals from detached clients and watchers never count
         this.clients.set(client, { ...attached, viewport: { ...frame.viewport } });
         this.rearbitrate();
         return;
@@ -213,8 +212,15 @@ export class TerminalSessionHost {
     this.screen.dispose();
   }
 
+  /** Whether `client`'s input and kill reach the pty: it is attached, and not a watcher. */
+  private mayAct(client: TerminalClient): boolean {
+    const attached = this.clients.get(client);
+    return attached !== undefined && !attached.watch;
+  }
+
   /**
-   * Recompute the decision from all attached proposals and, if it changed,
+   * Recompute the decision from the proposals of the attached clients that are
+   * not watchers and, if it changed,
    * write it to the pty (sole writer), the mirror engine, and every client.
    *
    * The client broadcast goes through the same ordered channel as `output`, so
@@ -224,14 +230,10 @@ export class TerminalSessionHost {
    * @param exclude A client that must not receive the broadcast because it is
    *   mid-attach and will learn the decision from its `attached` frame.
    */
-  /** Whether `client`'s input and kill reach the pty: it is attached, and not `read-only`. */
-  private mayAct(client: TerminalClient): boolean {
-    const attached = this.clients.get(client);
-    return attached !== undefined && !attached.flags.includes("read-only");
-  }
-
   private rearbitrate(exclude?: TerminalClient): void {
-    const decided = arbitrateGeometry(sizingProposals([...this.clients.values()]), this.policy);
+    const proposals = [...this.clients.values()].filter((client) => !client.watch).map((client) => client.viewport);
+    // With no client that may type attached, nothing is decided and the grid stays as it was (rule 5).
+    const decided = arbitrateGeometry(proposals, this.policy);
     if (!decided || gridEquals(decided, this._geometry)) return;
     this._geometry = decided;
     this.pty.resize(decided);
