@@ -37,6 +37,9 @@ import type {
   TerminalGrid,
   TerminalServerFrame,
 } from '../protocol/index.js';
+import { reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
+
+export { reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
 
 const DEFAULT_RECONNECT_DELAY_MS = 1_500;
 
@@ -63,6 +66,14 @@ export interface GhosttyTerminalProps {
   watch?: boolean;
   /** Reconnect backoff. Default 1500ms. Set 0 to disable reconnect. */
   reconnectDelayMs?: number;
+  /**
+   * Whether to reconnect after the socket closes. Default: always. Return false for a close that says trying again is
+   * useless, such as an application's refusal (codes 4000 to 4999, RFC 6455 §7.4.2). react-use-websocket's option of the
+   * same name.
+   */
+  shouldReconnect?: (close: TerminalSocketClose) => boolean;
+  /** The socket closed, with its code and reason, before any reconnect. Not called when the component unmounts. */
+  onClose?: (close: TerminalSocketClose) => void;
   /** The session's process exited. */
   onExit?: (code: number | null) => void;
   /** OSC 0/2 title changes. */
@@ -85,11 +96,13 @@ export function GhosttyTerminal({
   onTitleChange,
   onError,
   onRendererFailure,
+  shouldReconnect,
+  onClose,
 }: GhosttyTerminalProps): React.ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
   // Callbacks live in refs so re-renders never tear down the session.
-  const callbacks = useRef({ onExit, onTitleChange, onError, onRendererFailure });
-  callbacks.current = { onExit, onTitleChange, onError, onRendererFailure };
+  const callbacks = useRef({ onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose });
+  callbacks.current = { onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose };
   const optionsRef = useRef(options);
 
   useEffect(() => {
@@ -151,8 +164,11 @@ export function GhosttyTerminal({
         }
         apply(frame);
       };
-      socket.onclose = () => {
-        if (disposed || reconnectDelayMs <= 0) return;
+      socket.onclose = (event) => {
+        if (disposed) return;
+        const close: TerminalSocketClose = { code: event.code, reason: event.reason };
+        callbacks.current.onClose?.(close);
+        if (!reconnectsAfter(close, reconnectDelayMs, callbacks.current.shouldReconnect)) return;
         retryTimer = setTimeout(connect, reconnectDelayMs);
       };
     };

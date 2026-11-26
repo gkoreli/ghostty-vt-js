@@ -21,6 +21,10 @@ patch = fixes).
   every attached client has the flag.
 - **`<GhosttyTerminal watch />`**: attaches as a watcher, takes no input (`disableStdin`), and sends nothing after its
   attach.
+- **`<GhosttyTerminal onClose shouldReconnect />`**: `onClose` hears each close of the session's socket, its code and
+  reason, before any reconnect; `shouldReconnect` returning false stops reconnecting after that close, as
+  react-use-websocket's option of the same name. Without it the component reconnects after every close, as before.
+  `reconnectsAfter(close, delay, shouldReconnect)` is the rule.
 - **`linkSchemes`** terminal option: a link opens only when the WHATWG URL parser reads one of the listed schemes
   (`['https']`), at the one place a click opens a link. `linkOpens(uri, schemes)` is the rule. Default unchanged:
   every link opens.
