@@ -9,6 +9,14 @@ patch = fixes).
 > 2026-07-24 (the 0.1.0/0.2.0 entries below shipped under that name; the
 > AppleScript/MCP bridge kept the old package and now depends on this one).
 
+## [Unreleased]
+
+### Added
+
+- `onAttach` on `<GhosttyTerminal>`: the host attached this client and its screen is drawn, after the first connect
+  and after each reconnect. A caller that says the terminal is away, after a close that reconnects, can say it is back
+  here. The frames are applied by `applyServerFrame` (`src/react/server-frame.ts`), as before.
+
 ## [0.7.1] - 2026-11-26
 
 ### Fixed

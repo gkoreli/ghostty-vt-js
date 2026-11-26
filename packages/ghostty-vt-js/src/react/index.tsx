@@ -37,6 +37,7 @@ import type {
   TerminalGrid,
   TerminalServerFrame,
 } from '../protocol/index.js';
+import { applyServerFrame } from './server-frame.js';
 import { reconnectDelay, reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
 
 export { reconnectDelay, reconnectsAfter, type TerminalSocketClose } from './socket-close.js';
@@ -75,6 +76,11 @@ export interface GhosttyTerminalProps {
   shouldReconnect?: (close: TerminalSocketClose) => boolean;
   /** The socket closed, with its code and reason, before any reconnect. Not called when the component unmounts. */
   onClose?: (close: TerminalSocketClose) => void;
+  /**
+   * The host attached this client and its screen is drawn: after the first connect and after each reconnect. A caller
+   * that says the terminal is away (closed with a code that reconnects) can say it is back here.
+   */
+  onAttach?: () => void;
   /** The session's process exited. */
   onExit?: (code: number | null) => void;
   /** OSC 0/2 title changes. */
@@ -99,11 +105,12 @@ export function GhosttyTerminal({
   onRendererFailure,
   shouldReconnect,
   onClose,
+  onAttach,
 }: GhosttyTerminalProps): React.ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
   // Callbacks live in refs so re-renders never tear down the session.
-  const callbacks = useRef({ onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose });
-  callbacks.current = { onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose };
+  const callbacks = useRef({ onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose, onAttach });
+  callbacks.current = { onExit, onTitleChange, onError, onRendererFailure, shouldReconnect, onClose, onAttach };
   const optionsRef = useRef(options);
 
   useEffect(() => {
@@ -123,28 +130,7 @@ export function GhosttyTerminal({
 
     const apply = (frame: TerminalServerFrame): void => {
       if (!terminal || disposed) return;
-      switch (frame.kind) {
-        case 'attached':
-          attempts = 0;
-          // The host's decision wins over our proposal, always.
-          terminal.applyGeometry(frame.geometry);
-          // Self-contained screen state (RIS-prefixed), not a byte fragment.
-          terminal.write(frame.replay);
-          return;
-        case 'geometry':
-          terminal.applyGeometry(frame.geometry);
-          return;
-        case 'output':
-          terminal.write(frame.data);
-          return;
-        case 'exit':
-          callbacks.current.onExit?.(frame.code);
-          return;
-        case 'error':
-          terminal.write(`\r\n\x1b[31m${frame.message}\x1b[0m\r\n`);
-          callbacks.current.onError?.(frame.message);
-          return;
-      }
+      if (applyServerFrame(frame, terminal, callbacks.current)) attempts = 0;
     };
 
     const connect = (): void => {
