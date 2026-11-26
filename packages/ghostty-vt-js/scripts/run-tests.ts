@@ -11,6 +11,7 @@ const suites = [
   "test/session-authority.test.mts",
   "test/snapshot-restore.test.mts",
   "test/watchers-and-links.test.mts",
+  "test/socket-close.test.mts",
 ] as const;
 
 for (const suite of suites) {
